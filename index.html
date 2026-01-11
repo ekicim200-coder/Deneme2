@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Miner - Telegram App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root { --neon-cyan: #00f3ff; --neon-gold: #ffd700; --neon-red: #ff3131; --bg-deep: #050508; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; color: white; }
+
+        /* GİRİŞ EKRANI (Loading) */
+        #loginScreen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #050508; z-index: 99999; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            padding: 20px;
+        }
+        .loader {
+            border: 5px solid #333; border-top: 5px solid var(--neon-cyan);
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* OYUN GÖRSELLERİ */
+        #crt-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 5; }
+        #gameCanvas { display: block; width: 100%; height: 100%; }
+        
+        .view-section { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; overflow-y: auto; padding-bottom: 100px; z-index: 10; }
+        .view-section.active { display: block; animation: fadeIn 0.5s ease; }
+        
+        .neon-card { background: rgba(10, 15, 20, 0.9); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 16px; padding: 20px; margin: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.05); backdrop-filter: blur(5px); }
+        .neon-input { width: 100%; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.1); border: 1px solid #444; color: #fff; border-radius: 8px; text-align: center; font-size: 16px; outline: none; }
+        .neon-btn { background: rgba(0, 243, 255, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 15px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 10px; font-size: 16px; transition:0.2s; }
+        .neon-btn:active { transform: scale(0.98); background: var(--neon-cyan); color: #000; }
+        .neon-btn.gold { border-color: var(--neon-gold); color: var(--neon-gold); }
+        .neon-btn.red { border-color: var(--neon-red); color: var(--neon-red); }
+
+        /* NAV & HUD */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: rgba(0,0,0,0.95); border-top: 1px solid #333; display: flex; justify-content: space-around; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
+        .nav-item { color: #666; font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; width: 20%; transition:0.3s; }
+        .nav-item.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); transform: translateY(-5px); }
+        .nav-item i { font-size: 20px; margin-bottom: 5px; }
+        
+        #hud-top { position: absolute; top: 20px; left: 20px; z-index: 20; }
+        .hud-pill { background: rgba(0,0,0,0.7); border-left: 3px solid var(--neon-cyan); padding: 8px 12px; border-radius: 4px; color: #fff; margin-bottom: 5px; display:flex; align-items:center; gap:10px; }
+        
+        #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; display: none; align-items: center; justify-content: center; }
+        .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
+        .lang-item { border: 1px solid #333; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; color: white; background: rgba(255,255,255,0.05); }
+        .rank-item { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; border-bottom: 1px solid #333; background: rgba(255,255,255,0.05); font-size: 13px; }
+
+        /* REHBER */
+        .guide-container { border: 1px solid #333; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        .guide-item { border-bottom: 1px solid #333; background: rgba(255,255,255,0.02); }
+        .guide-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; font-weight: bold; color: #eee; }
+        .guide-content { display: none; padding: 15px; background: rgba(0,0,0,0.6); color: #bbb; font-size: 13px; line-height: 1.6; }
+        .guide-item.active .guide-content { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(0, 243, 255, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 243, 255, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen">
+        <div class="loader"></div>
+        <h1 style="color:var(--neon-cyan); font-size: 30px; margin-bottom: 10px;">NEON MINER</h1>
+        <p id="loginStatus" style="color:#888; font-size:12px;">Telegram ile bağlanılıyor...</p>
+        <div id="debug-area" style="color:red; font-size:10px; margin-top:20px; display:none;"></div>
+    </div>
+
+    <div id="crt-overlay"></div>
+    <div id="notif-bar" style="position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--neon-cyan); color: #000; padding: 15px 30px; border-radius: 50px; font-weight: bold; z-index: 9999; transition: 0.5s; width: 90%; text-align: center; box-shadow: 0 0 20px var(--neon-cyan);"></div>
+
+    <div id="modalOverlay" style="display:none;">
+        <div style="background:#111; border:1px solid var(--neon-cyan); border-radius:20px; width:90%; max-height:80%; overflow-y:auto;">
+            <div style="padding:20px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
+                <h3 style="margin:0; color:var(--neon-cyan);" data-lang="langTitle">DİL / LANGUAGE</h3>
+                <i class="fas fa-times" onclick="document.getElementById('modalOverlay').style.display='none'" style="font-size:24px; cursor:pointer; color:white;"></i>
+            </div>
+            <div id="langList" class="lang-grid"></div>
+        </div>
+    </div>
+
+    <div id="gameView" class="view-section active">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud-top"></div>
+        <div id="startContainer" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:50;">
+            <div style="width:180px; height:180px; border:2px solid var(--neon-cyan); border-radius:50%; display:flex; justify-content:center; align-items:center; animation:pulse 2s infinite; cursor:pointer;" onclick="startGame()">
+                <h2 style="color:white; margin:0;" data-lang="start">BAŞLAT</h2>
+            </div>
+            <p style="color:#888; margin-top:20px; font-size:12px; letter-spacing:2px;" data-lang="moveDesc">DOKUN VE BAŞLA</p>
+        </div>
+        <div id="gameOverUI" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; display: none; z-index: 60; text-align: center;">
+            <div class="neon-card" style="border-color: var(--neon-red); box-shadow: 0 0 50px rgba(255, 49, 49, 0.3);">
+                <h2 style="color: var(--neon-red); margin:0;" data-lang="gameOver">SİSTEM ÇÖKTÜ</h2>
+                <div id="sessionStats" style="margin: 30px 0; font-family: monospace; color: #fff; text-align: left; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;"></div>
+                <button class="neon-btn gold" onclick="watchAd()" data-lang="recover">KURTAR (2X ÖDÜL)</button>
+                <button class="neon-btn" onclick="goToWalletFromGame()" data-lang="goToWallet">CÜZDANA GİT &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newsView" class="view-section">
+        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navNews">HABERLER</h2>
+        <div class="neon-card" style="border-color:#0088cc;">
+            <h3 style="color:#0088cc; margin:0;" data-lang="tgTitle">TOPLULUK</h3>
+            <p style="font-size:12px; color:#aaa;" data-lang="tgDesc">Güncellemeler için kanala katılın.</p>
+            <button class="neon-btn" style="border-color:#0088cc; color:#0088cc;" onclick="window.open('https://telegram.org')" data-lang="tgJoin">KATIL</button>
+        </div>
+        <div class="neon-card" style="border-color:var(--neon-gold);">
+            <h3 style="color:var(--neon-gold); margin:0;" data-lang="guideTitle">KILAVUZ</h3>
+            <div class="guide-container">
+                <div class="guide-item" onclick="toggleGuide(this)"><div class="guide-header"><span data-lang="g1t">Oyun</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g1d">Kontrol et.</div></div>
+                <div class="guide-item" onclick="toggleGuide(this)"><div class="guide-header"><span data-lang="g3t">Çekim</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g3d">Limit 1.0M.</div></div>
+                <div class="guide-item" onclick="toggleGuide(this)"><div class="guide-header"><span data-lang="g4t">Referans</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g4d">%30 Komisyon.</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="champView" class="view-section">
+        <div style="text-align:center; padding: 20px;">
+            <h2 style="color: var(--neon-gold); text-shadow: 0 0 20px var(--neon-gold); margin:0;" data-lang="navChamp">ŞAMPİYONA</h2>
+            <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:10px; margin-top:15px; padding:5px;">
+                <button id="tabDaily" class="neon-btn active" style="margin:0; border:none; background:var(--neon-cyan); color:#000;" onclick="switchLbTab('daily')" data-lang="lbDaily">GÜNLÜK</button>
+                <button id="tabRef" class="neon-btn" style="margin:0; border:none; background:transparent; color:#888;" onclick="switchLbTab('ref')" data-lang="lbRef">AYLIK</button>
+            </div>
+        </div>
+        <div id="rankContainer" style="padding: 0 15px;"></div>
+    </div>
+
+    <div id="walletView" class="view-section">
+        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="walletTitle">CÜZDAN</h2>
+        <div id="walletList"></div>
+    </div>
+
+    <div id="settingsView" class="view-section">
+        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navSettings">SİSTEM</h2>
+        <div class="neon-card">
+            <p style="color:#888; font-size:12px;" data-lang="langTitle">DİL</p>
+            <button class="neon-btn" onclick="openLangModal()"><span id="activeLangName">🇹🇷 Türkçe</span></button>
+        </div>
+        <div class="neon-card" style="border-color:var(--neon-gold);">
+            <h3 style="color:var(--neon-gold); margin:0;" data-lang="refTitle">REFERANS</h3>
+            <p style="font-size:12px; color:#ccc;" data-lang="refDesc">%30 Komisyon.</p>
+            <div style="display:flex; gap:10px; margin:10px 0;">
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;"><div style="font-size:18px; color:var(--neon-gold);" id="totalRefs">0</div><div style="font-size:10px; color:#888;" data-lang="refMembers">ÜYE</div></div>
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;"><div style="font-size:18px; color:var(--neon-gold);" id="totalComm">0</div><div style="font-size:10px; color:#888;" data-lang="refEarnings">KAZANÇ</div></div>
+            </div>
+            <button class="neon-btn gold" onclick="simRef()" data-lang="simRef">DAVET ET</button>
+        </div>
+        <div class="neon-card">
+             <div style="text-align:center; color:#666; font-size:12px;">ID: <span id="userIdDisplay">---</span></div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('game')" id="nav-game"><i class="fas fa-gamepad"></i><span data-lang="navGame">OYUN</span></div>
+        <div class="nav-item" onclick="switchTab('news')" id="nav-news"><i class="fas fa-newspaper"></i><span data-lang="navNews">HABER</span></div>
+        <div class="nav-item" onclick="switchTab('champ')" id="nav-champ"><i class="fas fa-trophy"></i><span data-lang="navChamp">LİG</span></div>
+        <div class="nav-item" onclick="switchTab('wallet')" id="nav-wallet"><i class="fas fa-wallet"></i><span data-lang="navWallet">CÜZDAN</span></div>
+        <div class="nav-item" onclick="switchTab('settings')" id="nav-settings"><i class="fas fa-cog"></i><span data-lang="navSettings">SİSTEM</span></div>
+    </div>
+
+<script>
+    // --- 1. FIREBASE AYARLARI ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqsuakQQOdm1NcWLjYyMTyiLpGmoBh7iA",
+      authDomain: "faucet-game.firebaseapp.com",
+      projectId: "faucet-game",
+      storageBucket: "faucet-game.firebasestorage.app",
+      messagingSenderId: "258577212321",
+      appId: "1:258577212321:web:302ebdcc27568e9c9e21e0",
+      measurementId: "G-DXE818SCVE"
+    };
+
+    // --- 2. SİSTEM BAŞLATMA (TELEGRAM ENTEGRASYONU) ---
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Telegram içinde tam ekran yap
+
+    let db, auth;
+    let user = { 
+        balances:{BTC:0,ETH:0,USDT:0,TRX:0}, 
+        addresses:{BTC:'',ETH:'',USDT:'',TRX:''},
+        lang:'tr', 
+        referrals: [], totalComm: 0,
+        lbData: { daily: [], ref: [], lastUpdate: 0 }
+    };
+    let telegramID = "demo_user"; // Varsayılan (Telegram dışı açılırsa)
+
+    function initSystem() {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            
+            // Telegram Kullanıcısını Al
+            if(tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                telegramID = tg.initDataUnsafe.user.id.toString();
+                const firstName = tg.initDataUnsafe.user.first_name;
+                document.getElementById('userIdDisplay').innerText = telegramID;
+                document.getElementById('loginStatus').innerText = "Hoşgeldin " + firstName;
+            } else {
+                // Telegram dışındaysa rastgele bir ID ver (Test için)
+                telegramID = "web_user_" + Math.floor(Math.random()*10000);
+                document.getElementById('userIdDisplay').innerText = "Demo Modu";
+            }
+
+            // Firebase'e Anonim Bağlan (Veritabanı izni için)
+            auth.signInAnonymously().then(() => {
+                loadUserData();
+            }).catch(e => {
+                document.getElementById('debug-area').style.display='block';
+                document.getElementById('debug-area').innerText = "Auth Error: " + e.message;
+            });
+
+        } catch(e) { 
+            alert("Sistem Hatası: " + e.message); 
+        }
+    }
+
+    // --- VERİ YÖNETİMİ (ID: TELEGRAM ID) ---
+    function loadUserData() {
+        // Firebase'deki "users" koleksiyonundan, Telegram ID'si ile döküman çek
+        db.collection('users').doc(telegramID).get().then(doc => {
+            if(doc.exists) { 
+                user = { ...user, ...doc.data() }; 
+            } else { 
+                saveData(); // Yeni kullanıcı oluştur
+            }
+            document.getElementById('loginScreen').style.display = 'none'; // Giriş ekranını kapat
+            updateAllUI();
+        }).catch(e => {
+            console.log("Veri çekilemedi, offline mod.");
+            document.getElementById('loginScreen').style.display = 'none';
+        });
+    }
+
+    function saveData() { 
+        // Telegram ID'si ile kaydet
+        db.collection('users').doc(telegramID).set(user); 
+    }
+
+    // --- OYUN MOTORU ---
+    const cvs = document.getElementById('gameCanvas');
+    const cx = cvs.getContext('2d');
+    let W, H, isPlaying=false, player={x:0, y:0, trail:[]}, entities=[], particles=[], bgStars=[], sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}, enemyInterval;
+    const COINS=[{id:'BTC',color:'#f7931a'},{id:'ETH',color:'#627eea'},{id:'USDT',color:'#26a17b'},{id:'TRX',color:'#eb0029'}];
+
+    function resize(){ 
+        W=window.innerWidth; H=window.innerHeight; cvs.width=W; cvs.height=H; 
+        bgStars=[]; for(let i=0;i<50;i++) bgStars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2,v:Math.random()*0.5});
+    }
+    window.addEventListener('resize', resize); resize();
+
+    function startGame() {
+        document.getElementById('startContainer').style.display='none';
+        isPlaying=true; player.x=W/2; player.y=H/2; player.trail=[]; entities=[]; sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0};
+        for(let i=0;i<6;i++) spawnEntity('coin');
+        clearInterval(enemyInterval);
+        enemyInterval = setInterval(() => { if(isPlaying) spawnEntity('enemy'); }, 1500); 
+        loop();
+    }
+
+    function spawnEntity(type) {
+        if(type==='coin') {
+            const c = COINS[Math.floor(Math.random()*COINS.length)];
+            entities.push({type:'coin', x:Math.random()*(W-20)+10, y:Math.random()*(H-20)+10, id:c.id, color:c.color, pulse:0});
+        } else if(type==='enemy') {
+            const side = Math.floor(Math.random()*4);
+            let x,y,vx,vy; const speed=3;
+            if(side===0){x=Math.random()*W;y=-50;vx=(Math.random()-0.5)*2;vy=speed;}
+            else if(side===1){x=W+50;y=Math.random()*H;vx=-speed;vy=(Math.random()-0.5)*2;}
+            else if(side===2){x=Math.random()*W;y=H+50;vx=(Math.random()-0.5)*2;vy=-speed;}
+            else {x=-50;y=Math.random()*H;vx=speed;vy=(Math.random()-0.5)*2;}
+            entities.push({type:'enemy', x,y,vx,vy, color:'#ff0044'});
+        }
+    }
+
+    function loop() {
+        if(!isPlaying) return;
+        cx.fillStyle='rgba(5,5,8,0.4)'; cx.fillRect(0,0,W,H); 
+
+        cx.fillStyle="white"; bgStars.forEach(s=>{ s.y+=s.v; if(s.y>H)s.y=0; cx.globalAlpha=0.3; cx.beginPath(); cx.arc(s.x,s.y,s.s,0,Math.PI*2); cx.fill(); }); cx.globalAlpha=1;
+
+        player.trail.push({x:player.x, y:player.y}); if(player.trail.length>20) player.trail.shift();
+        cx.beginPath(); cx.strokeStyle="rgba(0,243,255,0.5)"; cx.lineWidth=4; cx.lineCap="round";
+        for(let i=0;i<player.trail.length-1;i++){ cx.moveTo(player.trail[i].x,player.trail[i].y); cx.lineTo(player.trail[i+1].x,player.trail[i+1].y); } cx.stroke();
+        cx.shadowBlur=20; cx.shadowColor="#00f3ff"; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(player.x,player.y,12,0,Math.PI*2); cx.fill(); cx.shadowBlur=0;
+
+        for(let i=entities.length-1; i>=0; i--) {
+            let e = entities[i];
+            
+            if(e.type==='coin') {
+                e.pulse+=0.1; const r=12+Math.sin(e.pulse)*2;
+                cx.shadowBlur=15; cx.shadowColor=e.color; cx.fillStyle=e.color; cx.beginPath(); cx.arc(e.x,e.y,r,0,Math.PI*2); cx.fill(); cx.shadowBlur=0;
+                
+                if(Math.hypot(player.x-e.x,player.y-e.y)<30) {
+                    user.balances[e.id]+=1000; sessionEarn[e.id]+=1000;
+                    entities.splice(i,1); spawnEntity('coin'); updateHUD(true);
+                    for(let k=0;k<10;k++) particles.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:1,color:e.color});
+                    if(user.balances[e.id]%5000===0) saveData();
+                }
+            } else if(e.type==='enemy') {
+                e.x+=e.vx; e.y+=e.vy;
+                cx.shadowBlur=20; cx.shadowColor='#ff0044'; cx.font="30px Arial"; cx.fillText("🐻", e.x-15, e.y+10); cx.shadowBlur=0;
+                
+                if(Math.hypot(player.x-e.x,player.y-e.y)<30) { gameOver(); }
+                if(e.x<-100 || e.x>W+100 || e.y<-100 || e.y>H+100) entities.splice(i,1);
+            }
+        }
+
+        for(let i=particles.length-1;i>=0;i--){
+            let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.05;
+            if(p.life<=0) particles.splice(i,1);
+            else { cx.globalAlpha=p.life; cx.fillStyle=p.color; cx.beginPath(); cx.arc(p.x,p.y,3,0,Math.PI*2); cx.fill(); }
+        } cx.globalAlpha=1;
+
+        requestAnimationFrame(loop);
+    }
+    cvs.addEventListener('touchmove',e=>{e.preventDefault(); player.x=e.touches[0].clientX; player.y=e.touches[0].clientY;},{passive:false});
+
+    function gameOver() {
+        isPlaying = false; clearInterval(enemyInterval);
+        document.getElementById('gameOverUI').style.display = 'block';
+        saveData();
+        let html = ''; for(let k in sessionEarn) if(sessionEarn[k]>0) html += `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #333;"><span style="color:${COINS.find(x=>x.id==k).color}; font-weight:bold;">${k}</span><span>+${sessionEarn[k].toLocaleString()}</span></div>`;
+        document.getElementById('sessionStats').innerHTML = html || "0";
+    }
+
+    // --- UI FONKSİYONLARI ---
+    window.goToWalletFromGame = function() { 
+        document.getElementById('gameOverUI').style.display = 'none'; 
+        document.getElementById('startContainer').style.display = 'block'; 
+        switchTab('wallet'); 
+    }
+    
+    window.watchAd = function() { 
+        alert("2X!"); 
+        const mult = 2; for(let k in sessionEarn) user.balances[k] += sessionEarn[k]*mult; 
+        saveData(); 
+        document.getElementById('gameOverUI').style.display = 'none'; 
+        document.getElementById('startContainer').style.display = 'block'; 
+        switchTab('wallet'); 
+    }
+
+    const i18n = {
+        tr: { start:"BAŞLAT", moveDesc:"DOKUN VE KEŞFET", navGame:"OYUN", navNews:"HABER", navChamp:"LİG", navWallet:"CÜZDAN", navSettings:"SİSTEM", refTitle:"REFERANS", refDesc:"%30 Komisyon.", simRef:"DAVET ET", withdraw:"ÇEKİM YAP", limit:"LİMİT: 1.0M", addrPlace:"Cüzdan Adresi", sentMsg:"Talep Alındı!", tgTitle:"TOPLULUK", tgDesc:"Kanala katıl.", tgJoin:"KATIL", guideTitle:"KILAVUZ", g1t:"Oyun", g1d:"Topla.", g3t:"Çekim", g3d:"1.0M limit.", g4t:"Referans", g4d:"%30 Komisyon.", refMembers:"ÜYE", refEarnings:"KAZANÇ", gameOver:"SİSTEM ÇÖKTÜ", recover:"KURTAR (2X)", goToWallet:"CÜZDANA GİT", langTitle:"DİL SEÇİMİ", lbDaily:"GÜNLÜK", lbRef:"AYLIK", you:"SEN", refNotif:"Arkadaşın Kazandırdı:" },
+        en: { start:"START", moveDesc:"TOUCH TO EXPLORE", navGame:"GAME", navNews:"NEWS", navChamp:"RANK", navWallet:"WALLET", navSettings:"SYSTEM", refTitle:"REFERRAL", refDesc:"30% Commission.", simRef:"INVITE", withdraw:"WITHDRAW", limit:"LIMIT: 1.0M", addrPlace:"Wallet Address", sentMsg:"Sent!", tgTitle:"COMMUNITY", tgDesc:"Join channel.", tgJoin:"JOIN", guideTitle:"GUIDE", g1t:"Game", g1d:"Collect.", g3t:"Withdraw", g3d:"1.0M limit.", g4t:"Referral", g4d:"30% Commission.", refMembers:"MEMBERS", refEarnings:"EARNINGS", gameOver:"SYSTEM CRASH", recover:"RECOVER (2X)", goToWallet:"WALLET", langTitle:"LANGUAGE", lbDaily:"DAILY", lbRef:"MONTHLY", you:"YOU", refNotif:"Referral Earned:" },
+        // ... Diğer diller kodda yer kaplamasın diye kısaltıldı, mantık aynı ...
+    };
+    const LANGUAGES=[{code:'tr',name:'Türkçe',flag:'🇹🇷'},{code:'en',name:'English',flag:'🇺🇸'}];
+
+    function t(key){ return (i18n[user.lang]||i18n.en)[key]||key; }
+    function updateAllUI(){
+        document.querySelectorAll('[data-lang]').forEach(el=>el.innerText=t(el.getAttribute('data-lang')));
+        document.getElementById('activeLangName').innerText=LANGUAGES.find(x=>x.code===user.lang).name;
+        updateHUD(); updateRefUI(); renderWallet();
+    }
+
+    function updateHUD(anim=false){ 
+        const h=document.getElementById('hud-top'); h.innerHTML=''; 
+        COINS.forEach(c=>{ h.innerHTML+=`<div class="hud-pill" style="border-color:${c.color}; ${anim?'transform:scale(1.1); transition:0.1s':''}"><div style="width:8px;height:8px;background:${c.color};border-radius:50%;"></div> ${c.id}: ${user.balances[c.id].toLocaleString()}</div>`; }); 
+    }
+    
+    function renderWallet(){
+        const l=document.getElementById('walletList'); l.innerHTML='';
+        COINS.forEach(c=>{
+            const current = user.balances[c.id]; const limit = 1000000;
+            let percent = (current / limit) * 100; if(percent > 100) percent = 100;
+            
+            l.innerHTML+=`
+            <div class="neon-card" style="border-color:${c.color}">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <h3 style="color:${c.color}; margin:0;">${c.id}</h3>
+                    <span style="font-size:18px; font-weight:bold;">${current.toLocaleString()}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:3px;">
+                    <span>${percent.toFixed(1)}%</span> <span>1.0M</span>
+                </div>
+                <div style="height:8px; background:#222; border-radius:4px; overflow:hidden; margin-bottom:15px; border:1px solid #444;">
+                    <div style="height:100%; width:${percent}%; background:${c.color}; box-shadow:0 0 10px ${c.color}; transition: width 0.5s ease;"></div>
+                </div>
+                <input class="neon-input" placeholder="${t('addrPlace')}" value="${user.addresses[c.id]}" onchange="user.addresses['${c.id}']=this.value;saveData()" style="padding:10px; font-size:14px;">
+                <button class="neon-btn" onclick="withdraw('${c.id}')" style="margin-top:10px; opacity:${percent>=100?1:0.5}; cursor:${percent>=100?'pointer':'not-allowed'}">
+                    ${percent>=100 ? t('withdraw') : '1M GEREKLİ'}
+                </button>
+            </div>`;
+        });
+    }
+    
+    function updateRefUI(){ document.getElementById('totalRefs').innerText=user.referrals.length; document.getElementById('totalComm').innerText=user.totalComm.toLocaleString(); }
+
+    window.simRef=function(){ user.referrals.push("Ref"); saveData(); updateRefUI(); alert("OK"); }
+    
+    window.openLangModal=()=>{ document.getElementById('modalOverlay').style.display='flex'; const l=document.getElementById('langList'); l.innerHTML=''; LANGUAGES.forEach(x=>{ l.innerHTML+=`<div class="lang-item" onclick="changeLang('${x.code}')">${x.flag} ${x.name}</div>`; }); }
+    window.changeLang=(c)=>{ user.lang=c; saveData(); updateAllUI(); document.getElementById('modalOverlay').style.display='none'; }
+    window.toggleGuide=(el)=>el.classList.toggle('active');
+    
+    window.switchTab=function(tab){
+        document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+        document.getElementById(tab+'View').classList.add('active');
+        document.getElementById('nav-'+tab).classList.add('active');
+        if(tab==='wallet') renderWallet();
+        if(tab==='champ') initLeaderboard();
+    }
+
+    // Lig
+    window.initLeaderboard = function() {
+        const now = Date.now();
+        if (!user.lbData || user.lbData.daily.length === 0 || (now - user.lbData.lastUpdate > 86400000)) {
+            user.lbData = { daily: [], ref: [], lastUpdate: now };
+            for(let i=0; i<30; i++) {
+                user.lbData.daily.push({ name: `Miner_${Math.floor(1000+Math.random()*9000)}`, score: Math.floor(Math.random()*5000000)+500000 });
+                user.lbData.ref.push({ name: `Ref_${Math.floor(10+Math.random()*90)}`, score: Math.floor(Math.random()*500)+10 });
+            }
+            saveData();
+        }
+        renderLeaderboard('daily');
+    }
+    
+    window.switchLbTab = function(type) {
+        document.getElementById('tabDaily').style.background = type==='daily'?'var(--neon-cyan)':'transparent';
+        document.getElementById('tabRef').style.background = type==='ref'?'var(--neon-cyan)':'transparent';
+        renderLeaderboard(type);
+    }
+
+    function renderLeaderboard(type) {
+        const list = document.getElementById('rankContainer'); list.innerHTML='';
+        let data = [...user.lbData[type]];
+        let myScore = type==='daily' ? user.balances.USDT : user.referrals.length;
+        data.push({ name:t('you'), score:myScore, isMe:true });
+        data.sort((a,b)=>b.score-a.score);
+        data.slice(0,30).forEach((item,i)=>{
+            const rank = i+1;
+            let style = item.isMe ? "border:1px solid var(--neon-cyan); background:rgba(0,243,255,0.1);" : "";
+            list.innerHTML+=`<div class="rank-item" style="${style}"><div style="width:30px; text-align:center; font-weight:bold; color:${rank<=3?'var(--neon-gold)':'#666'}">${rank}</div><div style="flex:1; padding-left:10px;"><span style="font-weight:bold;">${item.name}</span></div><div style="font-weight:bold; font-family:monospace; color:var(--neon-cyan);">${item.score.toLocaleString()}</div></div>`;
+        });
+    }
+
+    setInterval(()=>{
+        if(user.referrals.length>0 && Math.random()<0.2){
+            user.balances.USDT+=10000; user.totalComm+=10000; saveData(); updateHUD(); updateRefUI();
+            const n=document.getElementById('notif-bar'); n.innerText=`💰 ${t('refNotif')} +10,000 USDT`; n.style.top="20px"; setTimeout(()=>n.style.top="-100px",2000);
+        }
+    }, 10000);
+
+    // BAŞLAT
+    initSystem();
+
+</script>
+</body>
+</html>
