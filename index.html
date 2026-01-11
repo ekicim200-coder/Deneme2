@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Miner - Master Fix</title>
+    <title>Neon Miner - Ultimate Master</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
@@ -13,62 +13,43 @@
 
     <style>
         :root { --neon-cyan: #00f3ff; --neon-gold: #ffd700; --neon-red: #ff3131; --bg-deep: #050508; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; color: white; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; outline: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
 
-        /* YÜKLEME EKRANI */
-        #loadingScreen { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #050508; z-index: 99999; 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
-        }
-        .loader {
-            width: 50px; height: 50px; border: 5px solid #333; 
-            border-top: 5px solid var(--neon-cyan); border-radius: 50%; 
-            animation: spin 1s linear infinite; margin-bottom: 20px;
-        }
+        /* LOADING SCREEN */
+        #loadingScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050508; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .loader { width: 50px; height: 50px; border: 5px solid #222; border-top: 5px solid var(--neon-cyan); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* OYUN ALANI */
+        /* GAME ELEMENTS */
         #gameCanvas { display: block; width: 100%; height: 100%; }
-        .view-section { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; overflow-y: auto; padding-bottom: 100px; z-index: 10; }
+        .view-section { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; overflow-y: auto; padding-bottom: 90px; z-index: 10; scroll-behavior: smooth; }
         .view-section.active { display: block; animation: fadeIn 0.4s ease; }
         
-        /* KARTLAR */
-        .neon-card { background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 16px; padding: 20px; margin: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.05); }
-        
-        /* INPUT & BUTON */
-        .neon-input { width: 100%; padding: 12px; margin: 10px 0; background: rgba(255,255,255,0.05); border: 1px solid #444; color: #fff; border-radius: 8px; text-align: center; font-size: 14px; outline: none; font-family: monospace; color: var(--neon-gold); }
-        .neon-btn { background: rgba(0, 243, 255, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 10px; font-size: 14px; transition:0.2s; }
+        .neon-card { background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 16px; padding: 20px; margin: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.05); }
+        .neon-btn { background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 10px; font-size: 14px; transition: 0.2s; }
         .neon-btn:active { transform: scale(0.98); background: var(--neon-cyan); color: #000; }
         .neon-btn.gold { border-color: var(--neon-gold); color: var(--neon-gold); }
-        .neon-btn.red { border-color: var(--neon-red); color: var(--neon-red); }
-        
-        /* ALT MENÜ */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.95); border-top: 1px solid #333; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
-        .nav-item { color: #666; font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; width: 20%; transition:0.3s; }
+
+        /* NAV BAR */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.95); border-top: 1px solid #333; display: flex; justify-content: space-around; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
+        .nav-item { color: #666; font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; width: 20%; transition: 0.3s; }
         .nav-item.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); transform: translateY(-3px); }
         .nav-item i { font-size: 20px; margin-bottom: 5px; }
-        
-        /* HUD & LİDERLİK */
-        #hud-top { position: absolute; top: 20px; left: 20px; z-index: 20; }
-        .hud-pill { background: rgba(0,0,0,0.7); border-left: 3px solid var(--neon-cyan); padding: 6px 12px; border-radius: 4px; color: #fff; margin-bottom: 5px; display:flex; align-items:center; gap:8px; font-size:12px; }
-        .rank-item { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; border-bottom: 1px solid #333; background: rgba(255,255,255,0.05); font-size: 13px; }
-        
-        /* REHBER (AKORDEON) */
+
+        /* HUD & RANKING */
+        #hud-top { position: absolute; top: 20px; left: 20px; z-index: 20; pointer-events: none; }
+        .hud-pill { background: rgba(0,0,0,0.8); border-left: 3px solid var(--neon-cyan); padding: 6px 12px; border-radius: 4px; color: #fff; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: monospace; }
+        .rank-item { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border-bottom: 1px solid #333; font-size: 13px; }
+
+        /* GUIDE (ACCORDION) */
         .guide-container { border: 1px solid #333; border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .guide-item { border-bottom: 1px solid #333; background: rgba(255,255,255,0.02); }
-        .guide-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; font-weight: bold; color: #eee; }
-        .guide-content { display: none; padding: 15px; background: rgba(0,0,0,0.6); color: #bbb; font-size: 13px; line-height: 1.6; }
+        .guide-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; color: #eee; font-weight: bold; }
+        .guide-content { display: none; padding: 15px; background: rgba(0,0,0,0.5); color: #bbb; font-size: 13px; line-height: 1.6; }
         .guide-item.active .guide-content { display: block; }
 
-        /* MODAL */
-        #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; display: none; align-items: center; justify-content: center; }
-        .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
-        .lang-item { border: 1px solid #333; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; color: white; background: rgba(255,255,255,0.05); }
-
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(0, 243, 255, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 243, 255, 0); } }
     </style>
 </head>
 <body>
@@ -76,23 +57,23 @@
     <div id="loadingScreen">
         <div class="loader"></div>
         <h2 style="color:var(--neon-cyan); letter-spacing:3px;">NEON MINER</h2>
-        <p id="statusText" style="color:#888; font-size:12px; margin-top:10px;">Sunucuya Bağlanıyor...</p>
-        <div id="errorLog" style="color:red; font-size:11px; margin-top:20px; max-width:80%; text-align:center; display:none; background:rgba(255,0,0,0.1); padding:10px; border-radius:5px;"></div>
+        <p id="statusText" style="color:#666; font-size:12px;">Telegram ID doğrulanıyor...</p>
+        <div id="errorLog" style="color:var(--neon-red); font-size:10px; margin-top:20px; max-width:80%; text-align:center; display:none; background:rgba(255,0,0,0.1); padding:10px; border-radius:5px;"></div>
     </div>
 
     <div id="gameView" class="view-section active">
         <canvas id="gameCanvas"></canvas>
         <div id="hud-top"></div>
         <div id="startContainer" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:50;">
-            <div style="width:160px; height:160px; border:2px solid var(--neon-cyan); border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; box-shadow:0 0 40px var(--neon-cyan); animation: pulse 2s infinite;" onclick="startGame()">
-                <h2 style="color:white; margin:0;" data-lang="start">BAŞLAT</h2>
+            <div style="width:160px; height:160px; border:2px solid var(--neon-cyan); border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; box-shadow:0 0 40px var(--neon-cyan);" onclick="startGame()">
+                <h2 data-lang="start">BAŞLAT</h2>
             </div>
             <p style="color:#aaa; margin-top:20px; font-size:12px;" data-lang="moveDesc">DOKUN VE BAŞLA</p>
         </div>
         <div id="gameOverUI" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; display: none; z-index: 60; text-align: center;">
-            <div class="neon-card" style="border-color: var(--neon-red); box-shadow: 0 0 50px rgba(255, 49, 49, 0.3);">
-                <h2 style="color: var(--neon-red); margin:0;" data-lang="gameOver">SİSTEM ÇÖKTÜ</h2>
-                <div id="sessionStats" style="margin: 20px 0; color: #fff; text-align: left;"></div>
+            <div class="neon-card" style="border-color: var(--neon-red);">
+                <h2 style="color: var(--neon-red);" data-lang="gameOver">SİSTEM ÇÖKTÜ</h2>
+                <div id="sessionStats" style="margin: 20px 0; color: #fff; text-align: left; font-family: monospace;"></div>
                 <button class="neon-btn gold" onclick="watchAd()" data-lang="recover">KURTAR (2X)</button>
                 <button class="neon-btn" onclick="goToWalletFromGame()" data-lang="goToWallet">CÜZDANA GİT</button>
             </div>
@@ -108,17 +89,11 @@
         <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navNews">HABERLER</h2>
         <div class="neon-card" style="border-color:#0088cc;">
             <h3 style="color:#0088cc; margin:0;" data-lang="tgTitle">TOPLULUK</h3>
-            <p style="font-size:12px; color:#aaa; margin-bottom:10px;">Gelişmeler için kanala katıl.</p>
-            <button class="neon-btn" style="border-color:#0088cc; color:#0088cc;" onclick="window.open('https://telegram.org')" data-lang="tgJoin">KATIL</button>
+            <button class="neon-btn" style="border-color:#0088cc; margin-top:10px;" onclick="window.open('https://telegram.org')" data-lang="tgJoin">KATIL</button>
         </div>
         <div class="neon-card" style="border-color:var(--neon-gold);">
             <h3 style="color:var(--neon-gold); margin:0;" data-lang="guideTitle">KILAVUZ</h3>
-            <div class="guide-container">
-                <div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span data-lang="g1t">Oyun</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g1d">Parmağını sürükle, coin topla.</div></div>
-                <div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span data-lang="g2t">Ayılar</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g2d">Kırmızı ayılardan kaç!</div></div>
-                <div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span data-lang="g3t">Çekim</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g3d">Limit 1.0M olunca çek.</div></div>
-                <div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span data-lang="g4t">Referans</span> <i class="fas fa-chevron-down"></i></div><div class="guide-content" data-lang="g4d">%30 Komisyon kazan.</div></div>
-            </div>
+            <div class="guide-container" id="guideContainer"></div>
         </div>
     </div>
 
@@ -139,20 +114,20 @@
             <p style="color:#888; font-size:12px;" data-lang="langTitle">DİL</p>
             <button class="neon-btn" onclick="openLangModal()"><span id="activeLangName">🇹🇷 Türkçe</span></button>
         </div>
-        
         <div class="neon-card" style="border-color:var(--neon-gold);">
             <h3 style="color:var(--neon-gold); margin:0;" data-lang="refTitle">REFERANS</h3>
-            <p style="font-size:12px; color:#aaa;" data-lang="refDesc">%30 Komisyon.</p>
-            <div style="display:flex; gap:10px; margin:10px 0;">
-                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;"><div style="font-size:18px; color:var(--neon-gold);" id="totalRefs">0</div><div style="font-size:10px; color:#888;" data-lang="refMembers">ÜYE</div></div>
-                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;"><div style="font-size:18px; color:var(--neon-gold);" id="totalComm">0</div><div style="font-size:10px; color:#888;" data-lang="refEarnings">KAZANÇ</div></div>
+            <div style="display:flex; gap:10px; margin:15px 0;">
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;">
+                    <div style="font-size:18px; color:var(--neon-gold);" id="totalRefs">0</div>
+                    <div style="font-size:10px; color:#888;" data-lang="refMembers">ÜYE</div>
+                </div>
+                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;">
+                    <div style="font-size:18px; color:var(--neon-gold);" id="totalComm">0</div>
+                    <div style="font-size:10px; color:#888;" data-lang="refEarnings">KAZANÇ</div>
+                </div>
             </div>
-            <p style="color:#888; font-size:10px; margin-bottom:5px;">DAVET LİNKİN:</p>
-            <input type="text" id="myRefLink" class="neon-input" value="Yükleniyor..." readonly>
+            <input type="text" id="myRefLink" class="neon-card" style="width:100%; margin:10px 0; background:#000; font-size:11px; padding:10px; color:var(--neon-gold);" readonly>
             <button class="neon-btn gold" onclick="copyRefLink()" id="copyBtn">LİNKİ KOPYALA</button>
-        </div>
-        <div class="neon-card">
-            <div style="text-align:center; color:#666; font-size:10px;">ID: <span id="userIdDisplay">---</span></div>
         </div>
     </div>
 
@@ -164,18 +139,15 @@
         <div class="nav-item" onclick="switchTab('settings')" id="nav-settings"><i class="fas fa-cog"></i><span data-lang="navSettings">AYAR</span></div>
     </div>
 
-    <div id="modalOverlay" style="display:none;">
-        <div style="background:#111; border:1px solid var(--neon-cyan); border-radius:20px; width:80%; max-height:80%; overflow-y:auto;">
-            <div style="padding:20px; border-bottom:1px solid #333; display:flex; justify-content:space-between;">
-                <h3 style="margin:0; color:var(--neon-cyan);" data-lang="langTitle">DİL</h3>
-                <i class="fas fa-times" onclick="document.getElementById('modalOverlay').style.display='none'" style="font-size:24px; cursor:pointer; color:white;"></i>
-            </div>
+    <div id="modalOverlay">
+        <div style="background:#111; border:1px solid var(--neon-cyan); border-radius:20px; width:85%; max-height:80%; overflow-y:auto; padding:20px;">
+            <h3 style="color:var(--neon-cyan); margin-top:0;" data-lang="langTitle">DİL SEÇİMİ</h3>
             <div id="langList" class="lang-grid"></div>
         </div>
     </div>
 
 <script>
-    // --- BURAYA DİKKAT: KENDİ AYARLARINI YAPIŞTIR ---
+    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyBqsuakQQOdm1NcWLjYyMTyiLpGmoBh7iA",
       authDomain: "faucet-game.firebaseapp.com",
@@ -186,256 +158,169 @@
       measurementId: "G-DXE818SCVE"
     };
 
-    // BOT ADINI YAZ (Önemli: Link oluşturmak için)
     const BOT_USERNAME = "faucetgamebot";
-    const APP_NAME = "app"; // BotFather'da verdiğin isim
+    let db, auth, telegramID = "demo_" + Math.floor(Math.random()*9999);
+    let referrerID = null;
+    let user = { balances:{BTC:0,ETH:0,USDT:0,TRX:0}, addresses:{BTC:'',ETH:'',USDT:'',TRX:''}, lang:'tr', referrals:[], totalComm:0, lbData: {daily:[], ref:[], lastUpdate:0} };
 
-    let db, auth;
-    let user = { 
-        balances:{BTC:0,ETH:0,USDT:0,TRX:0}, 
-        addresses:{BTC:'',ETH:'',USDT:'',TRX:''},
-        lang:'tr', referrals:[], totalComm:0, 
-        lbData: { daily: [], ref: [], lastUpdate: 0 }
+    // --- DICTIONARY (11 LANGUAGES) ---
+    const i18n = {
+        tr: { start:"BAŞLAT", moveDesc:"DOKUN VE KEŞFET", navGame:"OYUN", navNews:"HABER", navChamp:"LİG", navWallet:"CÜZDAN", navSettings:"AYAR", refTitle:"REFERANS", refDesc:"%30 Komisyon.", tgTitle:"TOPLULUK", tgJoin:"KATIL", guideTitle:"KILAVUZ", g1t:"Oyun", g1d:"Parmağını sürükle, coin topla.", g2t:"Ayılar", g2d:"Kırmızı ayılardan kaç!", g3t:"Çekim", g3d:"1M olunca çek.", g4t:"Ref", g4d:"%30 kazan.", refMembers:"ÜYE", refEarnings:"KAZANÇ", gameOver:"SİSTEM ÇÖKTÜ", recover:"KURTAR (2X)", goToWallet:"CÜZDAN", langTitle:"DİL", lbDaily:"GÜNLÜK", lbRef:"AYLIK", you:"SEN", withdraw:"ÇEKİM", limit:"1M GEREKLİ", addrPlace:"Adres", sentMsg:"Talep Alındı!" },
+        en: { start:"START", moveDesc:"TOUCH TO EXPLORE", navGame:"GAME", navNews:"NEWS", navChamp:"RANK", navWallet:"WALLET", navSettings:"SETTINGS", refTitle:"REFERRAL", refDesc:"30% Comm.", tgTitle:"COMMUNITY", tgJoin:"JOIN", guideTitle:"GUIDE", g1t:"Play", g1d:"Drag finger, collect coins.", g2t:"Bears", g2d:"Avoid red bears!", g3t:"Withdraw", g3d:"Withdraw at 1M.", g4t:"Ref", g4d:"Earn 30%.", refMembers:"MEMBERS", refEarnings:"EARNINGS", gameOver:"SYSTEM CRASH", recover:"RECOVER (2X)", goToWallet:"WALLET", langTitle:"LANGUAGE", lbDaily:"DAILY", lbRef:"MONTHLY", you:"YOU", withdraw:"WITHDRAW", limit:"1M REQ.", addrPlace:"Address", sentMsg:"Sent!" },
+        de: { start:"START", moveDesc:"BERÜHREN", navGame:"SPIEL", navNews:"NEWS", navChamp:"RANG", navWallet:"BÖRSE", navSettings:"SETTING", refTitle:"REFERENZ", refDesc:"30% Prov.", tgTitle:"GEMEINSCHAFT", tgJoin:"BEITRETEN", guideTitle:"ANLEITUNG", g1t:"Spiel", g1d:"Sammeln.", g2t:"Bären", g2d:"Vermeiden!", g3t:"Auszahlung", g3d:"Ab 1M.", g4t:"Ref", g4d:"30% Gewinn.", refMembers:"MITGLIEDER", refEarnings:"GEWINN", gameOver:"ABSTURZ", recover:"RETTEN", goToWallet:"BÖRSE", langTitle:"SPRACHE", lbDaily:"TÄGLICH", lbRef:"MONAT", you:"DU", withdraw:"AUSZ.", limit:"1M NÖTIG", addrPlace:"Adresse", sentMsg:"Gesendet!" },
+        es: { start:"INICIAR", moveDesc:"MUEVE", navGame:"JUEGO", navNews:"NOTICIAS", navChamp:"RANGO", navWallet:"CARTERA", navSettings:"AJUSTE", refTitle:"REFERIDOS", refDesc:"30% Com.", tgTitle:"COMUNIDAD", tgJoin:"UNIRSE", guideTitle:"GUÍA", g1t:"Juego", g1d:"Recoge.", g2t:"Osos", g2d:"¡Evita osos!", g3t:"Retiro", g3d:"1M mínimo.", g4t:"Ref", g4d:"Gana 30%.", refMembers:"MIEMBROS", refEarnings:"GANANCIAS", gameOver:"FALLO", recover:"RECOUP (2X)", goToWallet:"CARTERA", langTitle:"IDIOMA", lbDaily:"DIARIO", lbRef:"MENSUAL", you:"TÚ", withdraw:"RETIRAR", limit:"1M REQ.", addrPlace:"Dirección", sentMsg:"¡Enviado!" },
+        fr: { start:"DÉMARRER", moveDesc:"BOUGEZ", navGame:"JEU", navNews:"ACTUS", navChamp:"RANG", navWallet:"WALLET", navSettings:"RÉGLAGE", refTitle:"PARRAINAGE", refDesc:"30% Comm.", tgTitle:"COMMUNAUTÉ", tgJoin:"REJOINDRE", guideTitle:"GUIDE", g1t:"Jeu", g1d:"Collectez.", g2t:"Ours", g2d:"Évitez-les!", g3t:"Retrait", g3d:"1M requis.", g4t:"Ref", g4d:"Gagnez 30%.", refMembers:"MEMBRES", refEarnings:"GAINS", gameOver:"PANNE", recover:"RÉCUPÉRER", goToWallet:"WALLET", langTitle:"LANGUE", lbDaily:"JOUR", lbRef:"MOIS", you:"VOUS", withdraw:"RETIRER", limit:"1M REQUIS", addrPlace:"Adresse", sentMsg:"Envoyé!" },
+        ru: { start:"СТАРТ", moveDesc:"ДВИГАЙСЯ", navGame:"ИГРА", navNews:"НОВОСТИ", navChamp:"ТОП", navWallet:"КОШЕЛЕК", navSettings:"НАСТР", refTitle:"РЕФЕРАЛ", refDesc:"30% ком.", tgTitle:"СООБЩЕСТВО", tgJoin:"ВСТУПИТЬ", guideTitle:"ГАЙД", g1t:"Игра", g1d:"Собирай.", g2t:"Медведи", g2d:"Избегай!", g3t:"Вывод", g3d:"От 1М.", g4t:"Реф", g4d:"30% доход.", refMembers:"УЧАСТНИКИ", refEarnings:"ДОХОD", gameOver:"СБОЙ", recover:"ВОССТ", goToWallet:"КОШЕЛЕК", langTitle:"ЯЗЫК", lbDaily:"ДЕНЬ", lbRef:"МЕСЯЦ", you:"ВЫ", withdraw:"ВЫВОД", limit:"1М НУЖНО", addrPlace:"Адрес", sentMsg:"Отправлено!" },
+        pt: { start:"INICIAR", moveDesc:"MOVA", navGame:"JOGO", navNews:"NOTÍCIAS", navChamp:"RANK", navWallet:"CARTEIRA", navSettings:"AJUSTE", refTitle:"REFERÊNCIA", refDesc:"30% Comm.", tgTitle:"COMUNIDADE", tgJoin:"ENTRAR", guideTitle:"GUIA", g1t:"Jogo", g1d:"Colete.", g2t:"Ursos", g2d:"Evite-os!", g3t:"Saque", g3d:"1M req.", g4t:"Ref", g4d:"Ganha 30%.", refMembers:"MEMBROS", refEarnings:"GANHOS", gameOver:"ERRO", recover:"RECUPERAR", goToWallet:"CARTERA", langTitle:"IDIOMA", lbDaily:"DIÁRIO", lbRef:"MENSAL", you:"VOCÊ", withdraw:"SACAR", limit:"1M REQ.", addrPlace:"Endereço", sentMsg:"Enviado!" },
+        id: { start:"MULAI", moveDesc:"GERAK", navGame:"MAIN", navNews:"BERITA", navChamp:"RANK", navWallet:"DOMPET", navSettings:"SETTING", refTitle:"REFERRAL", refDesc:"30% Kom.", tgTitle:"KOMUNITAS", tgJoin:"GABUNG", guideTitle:"PANDUAN", g1t:"Main", g1d:"Kumpulkan.", g2t:"Beruang", g2d:"Hindari!", g3t:"Tarik", g3d:"1M req.", g4t:"Ref", g4d:"Dapat 30%.", refMembers:"ANGGOTA", refEarnings:"PENDAPATAN", gameOver:"ERROR", recover:"PULIHKAN", goToWallet:"DOMPET", langTitle:"BAHASA", lbDaily:"HARIAN", lbRef:"BULANAN", you:"ANDA", withdraw:"TARIK", limit:"BUTUH 1M", addrPlace:"Alamat", sentMsg:"Terkirim!" },
+        ja: { start:"スタート", moveDesc:"動く", navGame:"ゲーム", navNews:"ニュース", navChamp:"ランク", navWallet:"財布", navSettings:"設定", refTitle:"紹介", refDesc:"30%獲得.", tgTitle:"コミュニティ", tgJoin:"参加", guideTitle:"ガイド", g1t:"プレイ", g1d:"集める.", g2t:"熊", g2d:"避ける!", g3t:"出金", g3d:"1Mから.", g4t:"紹介", g4d:"30%稼ぐ.", refMembers:"メンバー", refEarnings:"収益", gameOver:"エラー", recover:"回復", goToWallet:"財布", langTitle:"言語", lbDaily:"毎日", lbRef:"毎月", you:"あなた", withdraw:"出金", limit:"1M必要", addrPlace:"アドレス", sentMsg:"送信!" },
+        ko: { start:"시작", moveDesc:"이동", navGame:"게임", navNews:"뉴스", navChamp:"랭킹", navWallet:"지갑", navSettings:"설정", refTitle:"추천", refDesc:"30% 획득.", tgTitle:"커뮤니티", tgJoin:"참여", guideTitle:"가이드", g1t:"게임", g1d:"수집.", g2t:"곰", g2d:"피하기!", g3t:"출금", g3d:"1M 부터.", g4t:"추천", g4d:"30% 수익.", refMembers:"멤버", refEarnings:"수익", gameOver:"오류", recover:"복구", goToWallet:"지갑", langTitle:"언어", lbDaily:"매일", lbRef:"매월", you:"나", withdraw:"출금", limit:"1M 필요", addrPlace:"주소", sentMsg:"전송!" },
+        hi: { start:"शुरू", moveDesc:"हिलें", navGame:"खेल", navNews:"समाचार", navChamp:"रैंक", navWallet:"वॉलेट", navSettings:"सेटिंग", refTitle:"रेफरल", refDesc:"30% कमी.", tgTitle:"समुदाय", tgJoin:"जुड़ें", guideTitle:"गाइड", g1t:"खेल", g1d:"जमा करें.", g2t:"भालू", g2d:"बचें!", g3t:"निकासी", g3d:"1M आवश्यक.", g4t:"रेफरल", g4d:"30% कमाएं.", refMembers:"सदस्य", refEarnings:"कमाई", gameOver:"क्रैश", recover:"पुनर्प्राप्त", goToWallet:"वॉलेट", langTitle:"भाषा", lbDaily:"दैनिक", lbRef:"मासिक", you:"आप", withdraw:"निकासी", limit:"1M जरूरी", addrPlace:"पता", sentMsg:"भेजा!" }
     };
-    let telegramID = "demo_" + Math.floor(Math.random()*9999);
+    const LANGUAGES=[{code:'tr',name:'Türkçe',flag:'🇹🇷'},{code:'en',name:'English',flag:'🇺🇸'},{code:'de',name:'Deutsch',flag:'🇩🇪'},{code:'es',name:'Español',flag:'🇪🇸'},{code:'fr',name:'Français',flag:'🇫🇷'},{code:'ru',name:'Русский',flag:'🇷🇺'},{code:'pt',name:'Português',flag:'🇵🇹'},{code:'id',name:'Indonesia',flag:'🇮🇩'},{code:'ja',name:'日本語',flag:'🇯🇵'},{code:'ko',name:'한국어',flag:'🇰🇷'},{code:'hi',name:'हिन्दी',flag:'🇮🇳'}];
 
-    // --- SİSTEM BAŞLATMA ---
-    try {
-        firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth();
-        db = firebase.firestore();
-        
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        
-        if(tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            telegramID = tg.initDataUnsafe.user.id.toString();
-            document.getElementById('userIdDisplay').innerText = telegramID;
-            
-            // Referans Yakalama
-            const startParam = tg.initDataUnsafe.start_param;
-            if(startParam && startParam !== telegramID) {
-                console.log("Ref:", startParam);
+    function t(key){ return (i18n[user.lang]||i18n.en)[key]||key; }
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            const tg = window.Telegram.WebApp;
+            tg.expand();
+
+            if(tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                telegramID = tg.initDataUnsafe.user.id.toString();
+                referrerID = tg.initDataUnsafe.start_param;
             }
-        }
 
-        auth.signInAnonymously().then(() => {
-            loadUserData();
-        }).catch(e => {
-            const errDiv = document.getElementById('errorLog');
-            errDiv.style.display = 'block';
-            errDiv.innerHTML = "HATA: Firebase Anonim Giriş Kapalı!<br>Lütfen konsoldan Authentication > Sign-in method > Anonymous'u açın.<br><br>" + e.message;
-            document.getElementById('statusText').innerText = "Bağlantı Hatası";
-        });
+            // AUTH & LOAD
+            auth.signInAnonymously().then(() => {
+                const userRef = db.collection('users').doc(telegramID);
+                userRef.get().then(doc => {
+                    if(doc.exists) {
+                        user = {...user, ...doc.data()};
+                        finishLoad();
+                    } else {
+                        if(referrerID && referrerID !== telegramID) {
+                            giveReward(referrerID).then(() => { saveData(); finishLoad(); });
+                        } else { saveData(); finishLoad(); }
+                    }
+                });
+            }).catch(e => {
+                document.getElementById('errorLog').style.display='block';
+                document.getElementById('errorLog').innerText = "Auth Error: " + e.message;
+            });
+        } catch(e) { alert("Start Error: " + e.message); }
+    };
 
-    } catch(e) { alert("Config Hatası: " + e.message); }
-
-    // --- VERİ YÖNETİMİ ---
-    function loadUserData() {
-        db.collection('users').doc(telegramID).get().then(doc => {
-            if(doc.exists) { user = { ...user, ...doc.data() }; } 
-            else { saveData(); }
-            document.getElementById('loadingScreen').style.display = 'none';
-            generateRefLink();
-            updateAllUI();
-        }).catch(e => {
-            // Hata olursa offline devam etme, uyarı ver
-            document.getElementById('errorLog').style.display='block';
-            document.getElementById('errorLog').innerText = "Veri çekilemedi: " + e.message;
-        });
+    async function giveReward(refID) {
+        try {
+            const refRef = db.collection('users').doc(refID);
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(refRef);
+                if(!doc.exists) return;
+                transaction.update(refRef, {
+                    totalComm: firebase.firestore.FieldValue.increment(50000),
+                    "balances.USDT": firebase.firestore.FieldValue.increment(50000),
+                    referrals: firebase.firestore.FieldValue.arrayUnion(telegramID)
+                });
+            });
+        } catch(e) { console.log("Ref Reward Error"); }
     }
+
+    function finishLoad() {
+        document.getElementById('loadingScreen').style.display='none';
+        document.getElementById('myRefLink').value = `https://t.me/${BOT_USERNAME}/app?startapp=${telegramID}`;
+        updateAllUI();
+    }
+
     function saveData() { db.collection('users').doc(telegramID).set(user); }
 
-    // --- REFERANS ---
-    function generateRefLink() {
-        const link = `https://t.me/${BOT_USERNAME}/${APP_NAME}?startapp=${telegramID}`;
-        document.getElementById('myRefLink').value = link;
+    // --- UI UPDATES ---
+    function updateAllUI() {
+        document.querySelectorAll('[data-lang]').forEach(el => el.innerText = t(el.getAttribute('data-lang')));
+        const langObj = LANGUAGES.find(x => x.code === user.lang);
+        document.getElementById('activeLangName').innerText = langObj ? langObj.name : "Türkçe";
+        renderWallet();
+        renderGuide();
+        updateHUD();
+        document.getElementById('totalRefs').innerText = user.referrals.length;
+        document.getElementById('totalComm').innerText = user.totalComm.toLocaleString();
     }
-    function copyRefLink() {
-        const copyText = document.getElementById("myRefLink");
-        copyText.select(); copyText.setSelectionRange(0, 99999); 
-        navigator.clipboard.writeText(copyText.value).then(() => {
-            const btn = document.getElementById('copyBtn');
-            btn.innerText = "KOPYALANDI!";
-            setTimeout(() => btn.innerText = "LİNKİ KOPYALA", 2000);
+
+    function renderGuide() {
+        const gc = document.getElementById('guideContainer'); gc.innerHTML = '';
+        ['g1','g2','g3','g4'].forEach(key => {
+            gc.innerHTML += `<div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span>${t(key+'t')}</span><i class="fas fa-chevron-down"></i></div><div class="guide-content">${t(key+'d')}</div></div>`;
         });
     }
 
-    // --- LOGO & OYUN MOTORU ---
-    const IMG_SRCS = {
-        BTC: 'https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg',
-        ETH: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg',
-        USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025',
-        TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025'
-    };
-    const COIN_IMGS = {};
-    for(let k in IMG_SRCS) { let i = new Image(); i.src = IMG_SRCS[k]; COIN_IMGS[k] = i; }
+    function renderWallet() {
+        const l = document.getElementById('walletList'); l.innerHTML = '';
+        COINS.forEach(c => {
+            const cur = user.balances[c.id]; const limit = 1000000;
+            let perc = (cur / limit) * 100; if(perc > 100) perc = 100;
+            l.innerHTML += `
+            <div class="neon-card" style="border-color:${c.color}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="color:${c.color}; margin:0;">${c.id}</h3>
+                    <span style="font-weight:bold;">${cur.toLocaleString()}</span>
+                </div>
+                <div style="height:8px; background:#222; border-radius:4px; margin:15px 0; overflow:hidden;">
+                    <div style="height:100%; width:${perc}%; background:${c.color}; box-shadow: 0 0 10px ${c.color};"></div>
+                </div>
+                <input class="neon-input" value="${user.addresses[c.id]}" placeholder="${t('addrPlace')}" onchange="user.addresses['${c.id}']=this.value;saveData()" style="width:100%;">
+                <button class="neon-btn" onclick="withdraw('${c.id}')" style="opacity:${perc>=100?1:0.5}">${perc>=100 ? t('withdraw') : t('limit')}</button>
+            </div>`;
+        });
+    }
 
-    const cvs = document.getElementById('gameCanvas');
-    const cx = cvs.getContext('2d');
-    let W, H, isPlaying=false, player={x:0, y:0, trail:[]}, entities=[], particles=[], bgStars=[], sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}, enemyInterval;
+    // --- GAME ENGINE ---
+    const IMG_SRCS = { BTC:'https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg', ETH:'https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg', USDT:'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', TRX:'https://cryptologos.cc/logos/tron-trx-logo.png?v=025' };
+    const COIN_IMGS = {}; for(let k in IMG_SRCS) { let i = new Image(); i.src = IMG_SRCS[k]; COIN_IMGS[k] = i; }
+    const cvs = document.getElementById('gameCanvas'); const cx = cvs.getContext('2d');
+    let W, H, isPlaying=false, player={x:0,y:0,trail:[]}, entities=[], bgStars=[], sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}, enemyInterval;
     const COINS=[{id:'BTC',color:'#f7931a'},{id:'ETH',color:'#627eea'},{id:'USDT',color:'#26a17b'},{id:'TRX',color:'#eb0029'}];
 
     function resize(){ W=window.innerWidth; H=window.innerHeight; cvs.width=W; cvs.height=H; bgStars=[]; for(let i=0;i<50;i++) bgStars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2,v:Math.random()*0.5}); }
     window.addEventListener('resize', resize); resize();
 
-    function startGame() {
-        document.getElementById('startContainer').style.display='none';
-        isPlaying=true; player.x=W/2; player.y=H/2; player.trail=[]; entities=[]; sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0};
-        for(let i=0;i<6;i++) spawnEntity('coin');
-        clearInterval(enemyInterval);
-        enemyInterval = setInterval(() => { if(isPlaying) spawnEntity('enemy'); }, 1500); 
-        loop();
-    }
-
+    function startGame() { document.getElementById('startContainer').style.display='none'; isPlaying=true; player.trail=[]; entities=[]; sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}; for(let i=0;i<6;i++) spawnEntity('coin'); clearInterval(enemyInterval); enemyInterval = setInterval(() => { if(isPlaying) spawnEntity('enemy'); }, 1500); loop(); }
     function spawnEntity(type) {
-        if(type==='coin') {
-            const c = COINS[Math.floor(Math.random()*COINS.length)];
-            entities.push({type:'coin', x:Math.random()*(W-20)+10, y:Math.random()*(H-20)+10, id:c.id, color:c.color, pulse:0});
-        } else if(type==='enemy') {
-            const side = Math.floor(Math.random()*4);
-            let x,y,vx,vy; const speed=3;
-            if(side===0){x=Math.random()*W;y=-50;vx=(Math.random()-0.5)*2;vy=speed;} else if(side===1){x=W+50;y=Math.random()*H;vx=-speed;vy=(Math.random()-0.5)*2;} else if(side===2){x=Math.random()*W;y=H+50;vx=(Math.random()-0.5)*2;vy=-speed;} else {x=-50;y=Math.random()*H;vx=speed;vy=(Math.random()-0.5)*2;}
-            entities.push({type:'enemy', x,y,vx,vy, color:'#ff0044'});
-        }
+        if(type==='coin') { const c = COINS[Math.floor(Math.random()*COINS.length)]; entities.push({type:'coin', x:Math.random()*(W-20)+10, y:Math.random()*(H-20)+10, id:c.id, color:c.color, p:0}); }
+        else { const s=Math.floor(Math.random()*4); let x,y,vx,vy; if(s===0){x=Math.random()*W;y=-30;vx=0;vy=3;}else if(s===1){x=W+30;y=Math.random()*H;vx=-3;vy=0;}else if(s===2){x=Math.random()*W;y=H+30;vx=0;vy=-3;}else{x=-30;y=Math.random()*H;vx=3;vy=0;} entities.push({type:'enemy',x,y,vx,vy}); }
     }
-
     function loop() {
-        if(!isPlaying) return;
-        cx.fillStyle='rgba(5,5,8,0.4)'; cx.fillRect(0,0,W,H); 
-        cx.fillStyle="white"; bgStars.forEach(s=>{ s.y+=s.v; if(s.y>H)s.y=0; cx.globalAlpha=0.3; cx.beginPath(); cx.arc(s.x,s.y,s.s,0,Math.PI*2); cx.fill(); }); cx.globalAlpha=1;
-
-        player.trail.push({x:player.x, y:player.y}); if(player.trail.length>20) player.trail.shift();
-        cx.beginPath(); cx.strokeStyle="rgba(0,243,255,0.5)"; cx.lineWidth=4; cx.lineCap="round";
-        for(let i=0;i<player.trail.length-1;i++){ cx.moveTo(player.trail[i].x,player.trail[i].y); cx.lineTo(player.trail[i+1].x,player.trail[i+1].y); } cx.stroke();
-        cx.shadowBlur=20; cx.shadowColor="#00f3ff"; cx.fillStyle='#fff'; cx.beginPath(); cx.arc(player.x,player.y,12,0,Math.PI*2); cx.fill(); cx.shadowBlur=0;
-
-        for(let i=entities.length-1; i>=0; i--) {
-            let e = entities[i];
-            if(e.type==='coin') {
-                e.pulse+=0.1; const r=16+Math.sin(e.pulse)*2;
-                cx.shadowBlur=20; cx.shadowColor=e.color;
-                let img = COIN_IMGS[e.id];
-                if(img && img.complete && img.naturalHeight!==0) cx.drawImage(img, e.x-r, e.y-r, r*2, r*2);
-                else { cx.fillStyle=e.color; cx.beginPath(); cx.arc(e.x,e.y,r,0,Math.PI*2); cx.fill(); }
-                cx.shadowBlur=0;
-                
-                if(Math.hypot(player.x-e.x,player.y-e.y)<35) {
-                    user.balances[e.id]+=1000; sessionEarn[e.id]+=1000; entities.splice(i,1); spawnEntity('coin'); updateHUD(true);
-                    for(let k=0;k<8;k++) particles.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:1,color:e.color});
-                    saveData();
-                }
-            } else if(e.type==='enemy') {
-                e.x+=e.vx; e.y+=e.vy;
-                cx.shadowBlur=20; cx.shadowColor='#ff0044'; cx.font="30px Arial"; cx.fillText("🐻", e.x-15, e.y+10); cx.shadowBlur=0;
-                if(Math.hypot(player.x-e.x,player.y-e.y)<30) { gameOver(); }
-                if(e.x<-100 || e.x>W+100 || e.y<-100 || e.y>H+100) entities.splice(i,1);
-            }
-        }
-        for(let i=particles.length-1;i>=0;i--){ let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.05; if(p.life<=0) particles.splice(i,1); else { cx.globalAlpha=p.life; cx.fillStyle=p.color; cx.beginPath(); cx.arc(p.x,p.y,3,0,Math.PI*2); cx.fill(); } } cx.globalAlpha=1;
-        requestAnimationFrame(loop);
+        if(!isPlaying) return; cx.fillStyle='rgba(5,5,8,0.4)'; cx.fillRect(0,0,W,H);
+        cx.fillStyle="white"; bgStars.forEach(s=>{ s.y+=s.v; if(s.y>H)s.y=0; cx.globalAlpha=0.2; cx.beginPath(); cx.arc(s.x,s.y,s.s,0,Math.PI*2); cx.fill(); }); cx.globalAlpha=1;
+        player.trail.push({x:player.x,y:player.y}); if(player.trail.length>15) player.trail.shift();
+        cx.beginPath(); cx.strokeStyle="rgba(0,243,255,0.4)"; cx.lineWidth=3; for(let i=0;i<player.trail.length-1;i++) { cx.moveTo(player.trail[i].x,player.trail[i].y); cx.lineTo(player.trail[i+1].x,player.trail[i+1].y); } cx.stroke();
+        cx.shadowBlur=15; cx.shadowColor=var(--neon-cyan); cx.fillStyle='#fff'; cx.beginPath(); cx.arc(player.x,player.y,10,0,Math.PI*2); cx.fill(); cx.shadowBlur=0;
+        entities.forEach((e,i)=>{
+            if(e.type==='coin'){
+                e.p+=0.1; let r=14+Math.sin(e.p)*2; let img=COIN_IMGS[e.id];
+                if(img.complete) cx.drawImage(img, e.x-r, e.y-r, r*2, r*2); else { cx.fillStyle=e.color; cx.beginPath(); cx.arc(e.x,e.y,r,0,Math.PI*2); cx.fill(); }
+                if(Math.hypot(player.x-e.x,player.y-e.y)<30){ user.balances[e.id]+=1000; sessionEarn[e.id]+=1000; entities.splice(i,1); spawnEntity('coin'); updateHUD(); saveData(); }
+            } else { e.x+=e.vx; e.y+=e.vy; cx.font="25px Arial"; cx.fillText("🐻", e.x-12, e.y+10); if(Math.hypot(player.x-e.x,player.y-e.y)<25) gameOver(); if(e.x<-50||e.x>W+50||e.y<-50||e.y>H+50) entities.splice(i,1); }
+        }); requestAnimationFrame(loop);
     }
-    cvs.addEventListener('touchmove',e=>{e.preventDefault(); player.x=e.touches[0].clientX; player.y=e.touches[0].clientY;},{passive:false});
+    cvs.addEventListener('touchmove', e => { e.preventDefault(); player.x=e.touches[0].clientX; player.y=e.touches[0].clientY; }, {passive:false});
+    function gameOver() { isPlaying=false; clearInterval(enemyInterval); document.getElementById('gameOverUI').style.display='block'; let h=''; for(let k in sessionEarn) if(sessionEarn[k]>0) h+=`<div style='display:flex;justify-content:space-between;padding:5px;'><span>${k}</span><span>+${sessionEarn[k]}</span></div>`; document.getElementById('sessionStats').innerHTML=h||"0"; saveData(); }
 
-    function gameOver() {
-        isPlaying=false; clearInterval(enemyInterval); document.getElementById('gameOverUI').style.display='block'; saveData();
-        let html=''; for(let k in sessionEarn) if(sessionEarn[k]>0) html+=`<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #333;"><span style="color:${COINS.find(x=>x.id==k).color}; font-weight:bold;">${k}</span><span>+${sessionEarn[k].toLocaleString()}</span></div>`;
-        document.getElementById('sessionStats').innerHTML=html||"0";
-    }
-
-    // --- UI FONKSİYONLARI ---
-    window.goToWalletFromGame = function() { document.getElementById('gameOverUI').style.display = 'none'; document.getElementById('startContainer').style.display = 'block'; switchTab('wallet'); }
-    window.watchAd = function() { alert("2X KAZANÇ!"); const mult = 2; for(let k in sessionEarn) user.balances[k] += sessionEarn[k]*mult; saveData(); document.getElementById('gameOverUI').style.display = 'none'; document.getElementById('startContainer').style.display = 'block'; switchTab('wallet'); }
-
-    // --- 11 DİL ---
-    const i18n = {
-        tr: { start:"BAŞLAT", moveDesc:"DOKUN VE KEŞFET", navGame:"OYUN", navNews:"HABER", navChamp:"LİG", navWallet:"CÜZDAN", navSettings:"AYAR", refTitle:"REFERANS", refDesc:"%30 Komisyon.", tgTitle:"TOPLULUK", tgDesc:"Kanala katıl.", tgJoin:"KATIL", guideTitle:"KILAVUZ", g1t:"Oyun", g1d:"Parmağını sürükle, topla.", g2t:"Düşman", g2d:"Ayılardan kaç!", g3t:"Çekim", g3d:"1.0M Limit.", g4t:"Referans", g4d:"%30 Kazan.", refMembers:"ÜYE", refEarnings:"KAZANÇ", gameOver:"SİSTEM ÇÖKTÜ", recover:"KURTAR (2X)", goToWallet:"CÜZDANA GİT", langTitle:"DİL SEÇİMİ", lbDaily:"GÜNLÜK", lbRef:"AYLIK", you:"SEN", withdraw:"ÇEKİM", limit:"1M GEREKLİ", addrPlace:"Adres Girin", sentMsg:"Talep Alındı!" },
-        en: { start:"START", moveDesc:"TOUCH TO EXPLORE", navGame:"GAME", navNews:"NEWS", navChamp:"RANK", navWallet:"WALLET", navSettings:"SETTINGS", refTitle:"REFERRAL", refDesc:"30% Commission.", tgTitle:"COMMUNITY", tgDesc:"Join channel.", tgJoin:"JOIN", guideTitle:"GUIDE", g1t:"Game", g1d:"Drag finger, collect.", g2t:"Enemy", g2d:"Avoid bears!", g3t:"Withdraw", g3d:"1.0M Limit.", g4t:"Referral", g4d:"Earn 30%.", refMembers:"MEMBERS", refEarnings:"EARNINGS", gameOver:"SYSTEM CRASH", recover:"RECOVER (2X)", goToWallet:"WALLET", langTitle:"LANGUAGE", lbDaily:"DAILY", lbRef:"MONTHLY", you:"YOU", withdraw:"WITHDRAW", limit:"1M REQUIRED", addrPlace:"Enter Address", sentMsg:"Request Sent!" },
-        de: { start:"STARTEN", moveDesc:"BERÜHREN", navGame:"SPIEL", navNews:"NEWS", navChamp:"RANG", navWallet:"BÖRSE", navSettings:"EINSTELLUNG", refTitle:"REFERENZ", refDesc:"30% Provision.", tgTitle:"GEMEINSCHAFT", tgDesc:"Beitreten.", tgJoin:"BEITRETEN", guideTitle:"ANLEITUNG", g1t:"Spiel", g1d:"Sammeln.", g2t:"Feind", g2d:"Vermeiden!", g3t:"Abheben", g3d:"1.0M Limit.", g4t:"Referenz", g4d:"30% Verdienen.", refMembers:"MITGLIEDER", refEarnings:"GEWINN", gameOver:"ABSTURZ", recover:"RETTEN", goToWallet:"BÖRSE", langTitle:"SPRACHE", lbDaily:"TÄGLICH", lbRef:"MONATLICH", you:"DU", withdraw:"ABHEBEN", limit:"1M NÖTIG", addrPlace:"Adresse", sentMsg:"Gesendet!" },
-        es: { start:"INICIAR", moveDesc:"MUEVE", navGame:"JUEGO", navNews:"NOTICIAS", navChamp:"RANGO", navWallet:"CARTERA", navSettings:"AJUSTE", refTitle:"REFERIDOS", refDesc:"30% Comisión.", tgTitle:"COMUNIDAD", tgDesc:"Únete.", tgJoin:"UNIRSE", guideTitle:"GUÍA", g1t:"Juego", g1d:"Recoge.", g2t:"Enemigo", g2d:"¡Evita osos!", g3t:"Retiro", g3d:"Límite 1.0M.", g4t:"Ref", g4d:"Gana 30%.", refMembers:"MIEMBROS", refEarnings:"GANANCIAS", gameOver:"FALLO", recover:"RECUPERAR", goToWallet:"CARTERA", langTitle:"IDIOMA", lbDaily:"DIARIO", lbRef:"MENSUAL", you:"TÚ", withdraw:"RETIRAR", limit:"1M REQUERIDO", addrPlace:"Dirección", sentMsg:"¡Enviado!" },
-        fr: { start:"DÉMARRER", moveDesc:"BOUGEZ", navGame:"JEU", navNews:"ACTUS", navChamp:"RANG", navWallet:"WALLET", navSettings:"RÉGLAGE", refTitle:"PARRAINAGE", refDesc:"30% Commission.", tgTitle:"COMMUNAUTÉ", tgDesc:"Rejoindre.", tgJoin:"REJOINDRE", guideTitle:"GUIDE", g1t:"Jeu", g1d:"Collectez.", g2t:"Ennemi", g2d:"Évitez les ours!", g3t:"Retrait", g3d:"Limite 1.0M.", g4t:"Ref", g4d:"Gagnez 30%.", refMembers:"MEMBRES", refEarnings:"GAINS", gameOver:"PANNE", recover:"RÉCUPÉRER", goToWallet:"WALLET", langTitle:"LANGUE", lbDaily:"JOUR", lbRef:"MOIS", you:"VOUS", withdraw:"RETIRER", limit:"1M REQUIS", addrPlace:"Adresse", sentMsg:"Envoyé!" },
-        ru: { start:"СТАРТ", moveDesc:"ДВИГАЙСЯ", navGame:"ИГРА", navNews:"НОВОСТИ", navChamp:"ТОП", navWallet:"КОШЕЛЕК", navSettings:"НАСТР", refTitle:"РЕФЕРАЛ", refDesc:"30% комиссии.", tgTitle:"СООБЩЕСТВО", tgDesc:"Вступить.", tgJoin:"ВСТУПИТЬ", guideTitle:"ГАЙД", g1t:"Игра", g1d:"Собирай.", g2t:"Враг", g2d:"Избегай медведей!", g3t:"Вывод", g3d:"Лимит 1.0M.", g4t:"Реф", g4d:"30% доход.", refMembers:"УЧАСТНИКИ", refEarnings:"ДОХОД", gameOver:"СБОЙ", recover:"ВОССТ", goToWallet:"КОШЕЛЕК", langTitle:"ЯЗЫК", lbDaily:"ДЕНЬ", lbRef:"МЕСЯЦ", you:"ВЫ", withdraw:"ВЫВОД", limit:"НУЖНО 1М", addrPlace:"Адрес", sentMsg:"Отправлено!" },
-        pt: { start:"INICIAR", moveDesc:"MOVA", navGame:"JOGO", navNews:"NOTÍCIAS", navChamp:"RANK", navWallet:"CARTEIRA", navSettings:"AJUSTE", refTitle:"REFERÊNCIA", refDesc:"30% Comissão.", tgTitle:"COMUNIDADE", tgDesc:"Entrar.", tgJoin:"ENTRAR", guideTitle:"GUIA", g1t:"Jogo", g1d:"Colete.", g2t:"Inimigo", g2d:"Evite ursos!", g3t:"Saque", g3d:"Limite 1.0M.", g4t:"Ref", g4d:"Ganhe 30%.", refMembers:"MEMBROS", refEarnings:"GANHOS", gameOver:"ERRO", recover:"RECUPERAR", goToWallet:"CARTEIRA", langTitle:"IDIOMA", lbDaily:"DIÁRIO", lbRef:"MENSAL", you:"VOCÊ", withdraw:"SACAR", limit:"1M NECESSÁRIO", addrPlace:"Endereço", sentMsg:"Enviado!" },
-        id: { start:"MULAI", moveDesc:"GERAK", navGame:"MAIN", navNews:"BERITA", navChamp:"RANK", navWallet:"DOMPET", navSettings:"PENGATURAN", refTitle:"REFERRAL", refDesc:"Komisi 30%.", tgTitle:"KOMUNITAS", tgDesc:"Gabung.", tgJoin:"GABUNG", guideTitle:"PANDUAN", g1t:"Main", g1d:"Kumpulkan.", g2t:"Musuh", g2d:"Hindari beruang!", g3t:"Tarik", g3d:"Limit 1.0M.", g4t:"Ref", g4d:"Dapat 30%.", refMembers:"ANGGOTA", refEarnings:"PENDAPATAN", gameOver:"ERROR", recover:"PULIHKAN", goToWallet:"DOMPET", langTitle:"BAHASA", lbDaily:"HARIAN", lbRef:"BULANAN", you:"ANDA", withdraw:"TARIK", limit:"BUTUH 1M", addrPlace:"Alamat", sentMsg:"Terkirim!" },
-        ja: { start:"スタート", moveDesc:"動く", navGame:"ゲーム", navNews:"ニュース", navChamp:"ランク", navWallet:"財布", navSettings:"設定", refTitle:"紹介", refDesc:"30%獲得。", tgTitle:"コミュニティ", tgDesc:"参加。", tgJoin:"参加", guideTitle:"ガイド", g1t:"ゲーム", g1d:"集める。", g2t:"敵", g2d:"熊を避けろ!", g3t:"出金", g3d:"制限 1.0M。", g4t:"紹介", g4d:"30%稼ぐ。", refMembers:"メンバー", refEarnings:"収益", gameOver:"エラー", recover:"回復", goToWallet:"財布", langTitle:"言語", lbDaily:"毎日", lbRef:"毎月", you:"あなた", withdraw:"出金", limit:"1M必要", addrPlace:"アドレス", sentMsg:"送信!" },
-        ko: { start:"시작", moveDesc:"이동", navGame:"게임", navNews:"뉴스", navChamp:"랭킹", navWallet:"지갑", navSettings:"설정", refTitle:"추천", refDesc:"30% 획득.", tgTitle:"커뮤니티", tgDesc:"참여.", tgJoin:"참여", guideTitle:"가이드", g1t:"게임", g1d:"수집.", g2t:"적", g2d:"곰을 피하세요!", g3t:"출금", g3d:"한도 1.0M.", g4t:"추천", g4d:"30% 수익.", refMembers:"멤버", refEarnings:"수익", gameOver:"오류", recover:"복구", goToWallet:"지갑", langTitle:"언어", lbDaily:"매일", lbRef:"매월", you:"나", withdraw:"출금", limit:"1M 필요", addrPlace:"주소", sentMsg:"전송!" },
-        hi: { start:"शुरू", moveDesc:"हिलें", navGame:"खेल", navNews:"समाचार", navChamp:"रैंक", navWallet:"वॉलेट", navSettings:"सेटिंग्स", refTitle:"रेफरल", refDesc:"30% कमाएं।", tgTitle:"समुदाय", tgDesc:"जुड़ें।", tgJoin:"जुड़ें", guideTitle:"गाइड", g1t:"खेल", g1d:"जमा करें।", g2t:"दुश्मन", g2d:"भालू से बचें!", g3t:"निकासी", g3d:"सीमा 1.0M।", g4t:"रेफरल", g4d:"30% कमाएं।", refMembers:"सदस्य", refEarnings:"कमाई", gameOver:"क्रैश", recover:"पुनर्प्राप्त", goToWallet:"वॉलेट", langTitle:"भाषा", lbDaily:"दैनिक", lbRef:"मासिक", you:"आप", withdraw:"निकासी", limit:"1M आवश्यक", addrPlace:"पता", sentMsg:"भेजा!" }
-    };
-    const LANGUAGES=[{code:'tr',name:'Türkçe',flag:'🇹🇷'},{code:'en',name:'English',flag:'🇺🇸'},{code:'de',name:'Deutsch',flag:'🇩🇪'},{code:'es',name:'Español',flag:'🇪🇸'},{code:'fr',name:'Français',flag:'🇫🇷'},{code:'ru',name:'Русский',flag:'🇷🇺'},{code:'pt',name:'Português',flag:'🇵🇹'},{code:'id',name:'Indonesia',flag:'🇮🇩'},{code:'ja',name:'日本語',flag:'🇯🇵'},{code:'ko',name:'한국어',flag:'🇰🇷'},{code:'hi',name:'हिन्दी',flag:'🇮🇳'}];
-
-    function t(key){ return (i18n[user.lang]||i18n.en)[key]||key; }
-    function updateAllUI(){
-        document.querySelectorAll('[data-lang]').forEach(el=>el.innerText=t(el.getAttribute('data-lang')));
-        document.getElementById('activeLangName').innerText=LANGUAGES.find(x=>x.code===user.lang).name;
-        updateHUD(); updateRefUI(); renderWallet();
-    }
-
-    function updateHUD(anim=false){ 
-        const h=document.getElementById('hud-top'); h.innerHTML=''; 
-        COINS.forEach(c=>{ h.innerHTML+=`<div class="hud-pill" style="border-color:${c.color}; ${anim?'transform:scale(1.1); transition:0.1s':''}"><div style="width:8px;height:8px;background:${c.color};border-radius:50%;"></div> ${c.id}: ${user.balances[c.id].toLocaleString()}</div>`; }); 
-    }
-    
-    // --- CÜZDAN & LİG ---
-    function renderWallet(){
-        const l=document.getElementById('walletList'); l.innerHTML='';
-        COINS.forEach(c=>{
-            const current = user.balances[c.id]; const limit = 1000000;
-            let percent = (current / limit) * 100; if(percent > 100) percent = 100;
-            l.innerHTML+=`
-            <div class="neon-card" style="border-color:${c.color}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <h3 style="color:${c.color}; margin:0;">${c.id}</h3>
-                    <span style="font-size:18px; font-weight:bold;">${current.toLocaleString()}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:3px;">
-                    <span>${percent.toFixed(1)}%</span> <span>1.0M</span>
-                </div>
-                <div style="height:8px; background:#222; border-radius:4px; overflow:hidden; margin-bottom:15px; border:1px solid #444;">
-                    <div style="height:100%; width:${percent}%; background:${c.color}; box-shadow:0 0 10px ${c.color}; transition: width 0.5s ease;"></div>
-                </div>
-                <input class="neon-input" placeholder="${t('addrPlace')}" value="${user.addresses[c.id]}" onchange="user.addresses['${c.id}']=this.value;saveData()" style="padding:10px; font-size:14px;">
-                <button class="neon-btn" onclick="withdraw('${c.id}')" style="margin-top:10px; opacity:${percent>=100?1:0.5}; cursor:${percent>=100?'pointer':'not-allowed'}">
-                    ${percent>=100 ? t('withdraw') : t('limit')}
-                </button>
-            </div>`;
-        });
-    }
-    
-    function updateRefUI(){ document.getElementById('totalRefs').innerText=user.referrals.length; document.getElementById('totalComm').innerText=user.totalComm.toLocaleString(); }
-
-    window.simRef=function(){ alert("Bu buton demo içindir. Gerçek davet için linki paylaşın."); }
-    window.withdraw=function(id){ if(user.balances[id]<1000000){return;} user.balances[id]-=1000000; saveData(); renderWallet(); alert(t('sentMsg')); }
+    // --- OTHER UI LOGIC ---
+    window.switchTab = function(t) { document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active')); document.getElementById(t+'View').classList.add('active'); document.getElementById('nav-'+t).classList.add('active'); if(t==='wallet') renderWallet(); if(t==='champ') initLB(); };
     window.openLangModal=()=>{ document.getElementById('modalOverlay').style.display='flex'; const l=document.getElementById('langList'); l.innerHTML=''; LANGUAGES.forEach(x=>{ l.innerHTML+=`<div class="lang-item" onclick="changeLang('${x.code}')">${x.flag} ${x.name}</div>`; }); }
     window.changeLang=(c)=>{ user.lang=c; saveData(); updateAllUI(); document.getElementById('modalOverlay').style.display='none'; }
-    window.switchTab=function(tab){ document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active')); document.getElementById(tab+'View').classList.add('active'); document.getElementById('nav-'+tab).classList.add('active'); if(tab==='wallet') renderWallet(); if(tab==='champ') initLeaderboard(); }
-
-    window.initLeaderboard = function() {
-        const now = Date.now();
-        if (!user.lbData || user.lbData.daily.length === 0 || (now - user.lbData.lastUpdate > 86400000)) {
-            user.lbData = { daily: [], ref: [], lastUpdate: now };
-            for(let i=0; i<30; i++) {
-                user.lbData.daily.push({ name: `Miner_${Math.floor(1000+Math.random()*9000)}`, score: Math.floor(Math.random()*5000000)+500000 });
-                user.lbData.ref.push({ name: `Ref_${Math.floor(10+Math.random()*90)}`, score: Math.floor(Math.random()*500)+10 });
-            }
-            saveData();
-        }
-        renderLeaderboard('daily');
-    }
-    window.switchLbTab = function(type) { document.getElementById('tabDaily').style.background = type==='daily'?'var(--neon-cyan)':'transparent'; document.getElementById('tabRef').style.background = type==='ref'?'var(--neon-cyan)':'transparent'; renderLeaderboard(type); }
-    function renderLeaderboard(type) {
-        const list = document.getElementById('rankContainer'); list.innerHTML='';
-        let data = [...user.lbData[type]];
-        let myScore = type==='daily' ? user.balances.USDT : user.referrals.length;
-        data.push({ name:t('you'), score:myScore, isMe:true });
-        data.sort((a,b)=>b.score-a.score);
-        data.slice(0,30).forEach((item,i)=>{
-            const rank = i+1; let style = item.isMe ? "border:1px solid var(--neon-cyan); background:rgba(0,243,255,0.1);" : "";
-            list.innerHTML+=`<div class="rank-item" style="${style}"><div style="width:30px; text-align:center; font-weight:bold; color:${rank<=3?'var(--neon-gold)':'#666'}">${rank}</div><div style="flex:1; padding-left:10px;"><span style="font-weight:bold;">${item.name}</span></div><div style="font-weight:bold; font-family:monospace; color:var(--neon-cyan);">${item.score.toLocaleString()}</div></div>`;
-        });
-    }
-
-    setInterval(()=>{ if(user.referrals.length>0 && Math.random()<0.2){ user.balances.USDT+=10000; user.totalComm+=10000; saveData(); updateHUD(); updateRefUI(); } }, 10000);
-
+    window.copyRefLink=()=>{ const c=document.getElementById('myRefLink'); c.select(); document.execCommand('copy'); document.getElementById('copyBtn').innerText='KOPYALANDI!'; setTimeout(()=>document.getElementById('copyBtn').innerText='LİNKİ KOPYALA',2000); }
+    window.updateHUD=()=>{ const h=document.getElementById('hud-top'); h.innerHTML=''; COINS.forEach(c=>{ h.innerHTML+=`<div class="hud-pill" style="border-color:${c.color}">${c.id}: ${user.balances[c.id].toLocaleString()}</div>`; }); }
+    window.goToWalletFromGame=()=>{ document.getElementById('gameOverUI').style.display='none'; document.getElementById('startContainer').style.display='block'; switchTab('wallet'); }
+    window.switchLbTab=(t)=>{ document.getElementById('tabDaily').style.background=t==='daily'?'var(--neon-cyan)':'transparent'; document.getElementById('tabRef').style.background=t==='ref'?'var(--neon-cyan)':'transparent'; renderLB(t); }
+    window.initLB=()=>{ if(!user.lbData.daily.length){ for(let i=0;i<20;i++){ user.lbData.daily.push({name:'Miner_'+Math.floor(Math.random()*999),score:Math.floor(Math.random()*5000000)}); user.lbData.ref.push({name:'Ref_'+Math.floor(Math.random()*99),score:Math.floor(Math.random()*50)}); } } renderLB('daily'); }
+    function renderLB(t){ const l=document.getElementById('rankContainer'); l.innerHTML=''; let d=[...user.lbData[t]]; d.push({name:'YOU',score:t==='daily'?user.balances.USDT:user.referrals.length,me:true}); d.sort((a,b)=>b.score-a.score); d.forEach((x,i)=>{ l.innerHTML+=`<div class="rank-item" style="${x.me?'border:1px solid var(--neon-cyan)':''}"><div style="width:30px;">${i+1}</div><div style="flex:1;">${x.name}</div><div>${x.score.toLocaleString()}</div></div>`; }); }
+    function withdraw(id){ if(user.balances[id]>=1000000){ user.balances[id]-=1000000; saveData(); renderWallet(); alert(t('sentMsg')); } }
+    function watchAd(){ alert('2X!'); for(let k in sessionEarn) user.balances[k]+=sessionEarn[k]; saveData(); goToWalletFromGame(); }
 </script>
 </body>
 </html>
