@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crypto Plinko: History & Status</title>
+    <title>Crypto Plinko: Adsgram Integration</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://adsgram.ai/js/adsgram.js?v=1"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500;700;900&display=swap');
         body { margin: 0; overflow: hidden; background-color: #0b0e14; font-family: 'Roboto', sans-serif; color: white; touch-action: none; }
@@ -25,7 +27,6 @@
         #wallet-btn-open { position: absolute; top: 10px; right: 10px; background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; z-index: 15; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); font-size: 12px; display: flex; align-items: center; gap: 5px; }
         #wallet-btn-open:active { transform: scale(0.95); }
 
-        /* MODAL STYLES */
         #withdraw-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .withdraw-box { background: #1f2937; width: 100%; max-width: 400px; border-radius: 12px; border: 1px solid #374151; padding: 20px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         
@@ -45,7 +46,6 @@
         .w-btn.active { background: #10b981; color: white; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3); }
         .w-btn.active:active { transform: scale(0.98); }
 
-        /* HISTORY SECTION STYLES */
         .history-container { border-top: 1px solid #374151; padding-top: 10px; margin-top: 10px; }
         .history-title { font-size: 12px; color: #9ca3af; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
         #history-list { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
@@ -58,14 +58,13 @@
         .st-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
         .st-sent { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
 
-        /* ADS & GAME OVER */
-        #modal-overlay, #ad-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 90; }
+        #modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 90; }
         .modal-box { background: #1f2937; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #374151; width: 85%; max-width: 320px; }
-        .loader { border: 4px solid #333; border-top: 4px solid #fff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #374151; font-size: 13px; color: #e5e7eb; }
         .summary-row:last-child { border-bottom: none; }
         .sum-val { font-family: monospace; color: #4ade80; font-weight: bold; }
+        
         #ui-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 110px; background: #111827; border-top: 2px solid #1f2937; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 20; }
         .stat-group { display: flex; flex-direction: column; }
         .stat-title { font-size: 10px; color: #6b7280; font-weight: bold; }
@@ -80,8 +79,8 @@
     <div id="value-table">
         <h3>BALL VALUES</h3>
         <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-btc" class="coin-mini-icon">BTC</div> <span class="coin-fixed-val">0.00000001</span></div>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-eth" class="coin-mini-icon">ETH</div> <span class="coin-fixed-val">0.00000007</span></div>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-trx" class="coin-mini-icon">TRX</div> <span class="coin-fixed-val">0.01</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-eth" class="coin-mini-icon">ETH</div> <span class="coin-fixed-val">0.0000006</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-trx" class="coin-mini-icon">TRX</div> <span class="coin-fixed-val">0.001</span></div>
         <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-usdt" class="coin-mini-icon">USDT</div> <span class="coin-fixed-val">0.002</span></div>
         <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-str" class="coin-mini-icon">STR</div> <span class="coin-fixed-val">5.000</span></div>
     </div>
@@ -99,27 +98,15 @@
                 <span class="w-title">WALLET</span>
                 <button class="w-close" onclick="window.game.closeWithdrawModal()">&times;</button>
             </div>
-            
             <div id="withdraw-list"></div>
-
             <div class="history-container">
                 <div class="history-title">TRANSACTION HISTORY</div>
-                <div id="history-list">
-                    <div style="text-align:center; color:#555; padding:10px;">Loading history...</div>
-                </div>
+                <div id="history-list"><div style="text-align:center; color:#555; padding:10px;">Loading history...</div></div>
             </div>
         </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
-
-    <div id="ad-overlay">
-        <div style="color:#fff; text-align:center;">
-            <h3>WATCHING AD</h3>
-            <div class="loader" style="margin:20px auto;"></div>
-            <p id="ad-timer">3</p>
-        </div>
-    </div>
 
     <div id="modal-overlay">
         <div class="modal-box">
@@ -127,7 +114,7 @@
             <p style="color:#9ca3af; font-size:12px; margin-bottom:15px;">Your earnings this round:</p>
             <div id="round-summary" style="margin-bottom:20px; background:#111827; padding:10px; border-radius:8px;"></div>
             <button onclick="window.game.triggerAd()" style="background:#10b981; color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 4px 0 #059669;">
-                CLAIM TO WALLET &<br>RESTART (WATCH AD)
+                📺 WATCH AD & CLAIM
             </button>
         </div>
     </div>
@@ -145,7 +132,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-        // FIREBASE CONFIG (Senin Bilgilerin)
+        // 1. FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyCEfbxvL_RyxzRHC6O6SDSMQ_mHezIFCDw",
             authDomain: "plinko-faucet.firebaseapp.com",
@@ -154,6 +141,9 @@
             messagingSenderId: "945891210512",
             appId: "1:945891210512:web:eb66f91746bd8c8c032195",
         };
+
+        // 2. ADSGRAM BLOCK ID (Güncellendi)
+        const AdsgramBlockId = "21046"; 
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -170,14 +160,14 @@
 
         const COINS = [
             { id: 'btc',  baseVal: 0.00000001, currentBalance: 0, minWithdraw: 0.0001, src: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025', color: '#f7931a', decimals: 8 },
-            { id: 'eth',  baseVal: 0.00000007,  currentBalance: 0, minWithdraw: 0.001,   src: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025', color: '#627eea', decimals: 7 },
-            { id: 'trx',  baseVal: 0.01,      currentBalance: 0, minWithdraw: 50,      src: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025', color: '#ef0027', decimals: 3 },
+            { id: 'eth',  baseVal: 0.0000006,  currentBalance: 0, minWithdraw: 0.001,   src: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025', color: '#627eea', decimals: 7 },
+            { id: 'trx',  baseVal: 0.001,      currentBalance: 0, minWithdraw: 50,      src: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025', color: '#ef0027', decimals: 3 },
             { id: 'usdt', baseVal: 0.002,      currentBalance: 0, minWithdraw: 10,      src: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', color: '#26a17b', decimals: 3 },
             { id: 'str',  baseVal: 5.0,        currentBalance: 0, minWithdraw: 20000,   src: 'https://cdn-icons-png.flaticon.com/512/616/616490.png', color: '#ffffff', decimals: 2 }
         ];
 
         const ROWS = 14; const GRAVITY = 0.55; const FRICTION = 0.98; const BOUNCE = 0.55; const UI_HEIGHT = 110; 
-        const MULTIPLIERS = [20, 5, 2, 1, 3, 2, 50, 2, 3, 1, 5, 20, 20];
+        const MULTIPLIERS = [10, 5, 2, 1, 0.5, 0.2, 0.2, 0.2, 0.5, 1, 2, 5, 10];
 
         let width, height;
         let ballQueue = []; let pegs = []; let balls = []; let slots = []; let particles = []; let popups = [];
@@ -189,14 +179,12 @@
         const dropBtn = document.getElementById('drop-btn');
         const modal = document.getElementById('modal-overlay');
         const roundSummaryEl = document.getElementById('round-summary');
-        const adOverlay = document.getElementById('ad-overlay');
-        const adTimerEl = document.getElementById('ad-timer');
         const withdrawModal = document.getElementById('withdraw-modal');
         const withdrawList = document.getElementById('withdraw-list');
         const sessionPanel = document.getElementById('session-score-panel');
         const historyList = document.getElementById('history-list');
 
-        // --- FIREBASE DATA LOAD ---
+        // --- FIREBASE LOGIC ---
         async function loadUserData() {
             try {
                 const userRef = doc(db, "users", userId);
@@ -233,98 +221,87 @@
                     coin: coinId,
                     amount: amount,
                     address: address,
-                    status: 0, // 0: Pending, 1: Sent
+                    status: 0, 
                     createdAt: serverTimestamp()
                 });
                 return true;
             } catch (e) { console.error("Error creating withdrawal: ", e); return false; }
         }
 
-        // --- REAL-TIME HISTORY LISTENER ---
         function subscribeToHistory() {
             const q = query(collection(db, "withdrawals"), where("userId", "==", userId));
-            
             onSnapshot(q, (snapshot) => {
                 const historyEl = document.getElementById('history-list');
                 const withdrawals = [];
-                
-                snapshot.forEach((doc) => {
-                    withdrawals.push({ id: doc.id, ...doc.data() });
-                });
-
-                // JS ile sıralama (Firestore index hatasını önlemek için)
+                snapshot.forEach((doc) => { withdrawals.push({ id: doc.id, ...doc.data() }); });
                 withdrawals.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
-                if (withdrawals.length === 0) {
-                    historyEl.innerHTML = '<div style="text-align:center; color:#555; padding:10px;">No transactions yet.</div>';
-                    return;
-                }
+                if (withdrawals.length === 0) { historyEl.innerHTML = '<div style="text-align:center; color:#555; padding:10px;">No transactions yet.</div>'; return; }
 
                 historyEl.innerHTML = "";
                 withdrawals.forEach(w => {
-                    // STATÜ KONTROLÜ: 1 ise SENT, değilse PENDING
                     const isSent = (w.status == 1 || w.status == "1");
                     const statusClass = isSent ? 'st-sent' : 'st-pending';
                     const statusText = isSent ? '✅ SENT' : '⏳ PENDING';
-                    
                     const dateObj = w.createdAt ? new Date(w.createdAt.seconds * 1000) : new Date();
                     const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
                     const div = document.createElement('div');
                     div.className = 'h-row';
                     div.innerHTML = `
-                        <div class="h-left">
-                            <span class="h-coin">${w.coin.toUpperCase()}</span>
-                            <span class="h-date">${dateStr}</span>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="h-amount">${parseFloat(w.amount).toFixed(8)}</div>
-                            <span class="h-status ${statusClass}">${statusText}</span>
-                        </div>
+                        <div class="h-left"><span class="h-coin">${w.coin.toUpperCase()}</span><span class="h-date">${dateStr}</span></div>
+                        <div style="text-align:right;"><div class="h-amount">${parseFloat(w.amount).toFixed(8)}</div><span class="h-status ${statusClass}">${statusText}</span></div>
                     `;
                     historyEl.appendChild(div);
                 });
             });
         }
 
-        // --- WINDOW EXPORTS ---
+        // --- ADSGRAM & GAME LOGIC ---
         window.game = {
-            openWithdrawModal: () => {
-                renderWithdrawList();
-                subscribeToHistory(); // Modalı açınca geçmişi dinlemeye başla
-                withdrawModal.style.display = 'flex';
-            },
-            closeWithdrawModal: () => {
-                withdrawModal.style.display = 'none';
-            },
+            openWithdrawModal: () => { renderWithdrawList(); subscribeToHistory(); withdrawModal.style.display = 'flex'; },
+            closeWithdrawModal: () => { withdrawModal.style.display = 'none'; },
+            
             requestWithdraw: async (coinId) => {
                 const coin = COINS.find(c => c.id === coinId);
                 const addrInput = document.getElementById(`addr-${coinId}`);
                 const address = addrInput.value.trim();
                 if (address.length < 5) return alert("Please enter a valid wallet address!");
-
                 if (confirm(`Withdraw ${coin.currentBalance.toFixed(coin.decimals)} ${coin.id.toUpperCase()}?`)) {
                     const amount = coin.currentBalance;
                     coin.currentBalance = 0;
                     await saveUserData(); 
                     const success = await createWithdrawRequest(coin.id, amount, address);
-                    if(success) {
-                        alert("✅ Request Sent! Check History below.");
-                        renderWithdrawList();
-                    } else {
-                        alert("❌ Error. Try again.");
-                        coin.currentBalance = amount; saveUserData();
-                    }
+                    if(success) { alert("✅ Request Sent!"); renderWithdrawList(); } else { alert("❌ Error."); coin.currentBalance = amount; saveUserData(); }
                 }
             },
+
+            // --- ADSGRAM REKLAM FONKSİYONU ---
             triggerAd: () => {
+                // Adsgram Controller
+                if (window.Adsgram) {
+                    const AdController = window.Adsgram.init({ blockId: AdsgramBlockId });
+                    AdController.show().then((result) => {
+                        // Reklam başarıyla izlendi (reward)
+                        window.game.claimReward();
+                    }).catch((result) => {
+                        // Hata veya geçme (skip)
+                        console.log("Adsgram error/skip:", result);
+                        // Kullanıcı reklamı atlarsa veya hata olursa yine de ödülü veriyoruz (Kullanıcı deneyimi için)
+                        window.game.claimReward(); 
+                    });
+                } else {
+                    console.error("Adsgram script not loaded!");
+                    window.game.claimReward(); // Fallback
+                }
+            },
+
+            claimReward: () => {
                 let hasGain = false;
                 COINS.forEach(c => { if(sessionGains[c.id]) { c.currentBalance += sessionGains[c.id]; hasGain = true; } });
                 if(hasGain) saveUserData();
                 modal.style.display = 'none';
-                adOverlay.style.display = 'flex';
-                let timeLeft = 3; adTimerEl.innerText = timeLeft;
-                const timer = setInterval(() => { timeLeft--; adTimerEl.innerText = timeLeft; if (timeLeft <= 0) { clearInterval(timer); adOverlay.style.display = 'none'; refillBalls(); } }, 1000);
+                refillBalls();
             }
         };
 
