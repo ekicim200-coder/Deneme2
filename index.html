@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crypto Plinko: Adsgram Integration</title>
+    <title>Crypto Plinko: Ads Fixed</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://adsgram.ai/js/adsgram.js?v=1"></script>
     
@@ -12,7 +12,6 @@
         body { margin: 0; overflow: hidden; background-color: #0b0e14; font-family: 'Roboto', sans-serif; color: white; touch-action: none; }
         canvas { display: block; width: 100%; height: 100%; }
         
-        /* UI STYLES */
         #value-table { position: absolute; top: 10px; left: 10px; background: rgba(17, 24, 39, 0.95); border: 1px solid #374151; border-radius: 8px; padding: 8px; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5); min-width: 150px; }
         #value-table h3 { margin: 0 0 5px 0; font-size: 10px; color: #9ca3af; text-transform: uppercase; text-align: center; border-bottom: 1px solid #374151; padding-bottom: 3px; }
         .val-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; font-size: 10px; color: #e5e7eb; }
@@ -132,7 +131,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-        // 1. FIREBASE CONFIG
+        // FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyCEfbxvL_RyxzRHC6O6SDSMQ_mHezIFCDw",
             authDomain: "plinko-faucet.firebaseapp.com",
@@ -142,7 +141,7 @@
             appId: "1:945891210512:web:eb66f91746bd8c8c032195",
         };
 
-        // 2. ADSGRAM BLOCK ID (Güncellendi)
+        // ADSGRAM CONFIG (DEBUG MODE AKTİF)
         const AdsgramBlockId = "21046"; 
 
         const app = initializeApp(firebaseConfig);
@@ -276,23 +275,22 @@
                 }
             },
 
-            // --- ADSGRAM REKLAM FONKSİYONU ---
+            // --- ADSGRAM TRIGGER (DEBUG MODE ON) ---
             triggerAd: () => {
-                // Adsgram Controller
                 if (window.Adsgram) {
-                    const AdController = window.Adsgram.init({ blockId: AdsgramBlockId });
+                    // DEBUG MODU AÇIK: { debug: true }
+                    const AdController = window.Adsgram.init({ blockId: AdsgramBlockId, debug: true });
+                    
                     AdController.show().then((result) => {
-                        // Reklam başarıyla izlendi (reward)
                         window.game.claimReward();
                     }).catch((result) => {
-                        // Hata veya geçme (skip)
-                        console.log("Adsgram error/skip:", result);
-                        // Kullanıcı reklamı atlarsa veya hata olursa yine de ödülü veriyoruz (Kullanıcı deneyimi için)
-                        window.game.claimReward(); 
+                        // Kullanıcıya neden açılmadığını göster (Test için)
+                        alert("Ad Error: " + JSON.stringify(result));
+                        window.game.claimReward(); // Fallback
                     });
                 } else {
-                    console.error("Adsgram script not loaded!");
-                    window.game.claimReward(); // Fallback
+                    alert("Adsgram script not loaded properly!");
+                    window.game.claimReward();
                 }
             },
 
