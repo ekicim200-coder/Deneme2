@@ -1,326 +1,469 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Miner - Ultimate Master</title>
+    <title>Crypto Plinko: Telegram & Firebase</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <style>
-        :root { --neon-cyan: #00f3ff; --neon-gold: #ffd700; --neon-red: #ff3131; --bg-deep: #050508; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; outline: none; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white; }
-
-        /* LOADING SCREEN */
-        #loadingScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050508; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .loader { width: 50px; height: 50px; border: 5px solid #222; border-top: 5px solid var(--neon-cyan); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* GAME ELEMENTS */
-        #gameCanvas { display: block; width: 100%; height: 100%; }
-        .view-section { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; overflow-y: auto; padding-bottom: 90px; z-index: 10; scroll-behavior: smooth; }
-        .view-section.active { display: block; animation: fadeIn 0.4s ease; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500;700;900&display=swap');
+        body { margin: 0; overflow: hidden; background-color: #0b0e14; font-family: 'Roboto', sans-serif; color: white; touch-action: none; }
+        canvas { display: block; width: 100%; height: 100%; }
         
-        .neon-card { background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 16px; padding: 20px; margin: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.05); }
-        .neon-btn { background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); padding: 12px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 10px; font-size: 14px; transition: 0.2s; }
-        .neon-btn:active { transform: scale(0.98); background: var(--neon-cyan); color: #000; }
-        .neon-btn.gold { border-color: var(--neon-gold); color: var(--neon-gold); }
-
-        /* NAV BAR */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.95); border-top: 1px solid #333; display: flex; justify-content: space-around; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
-        .nav-item { color: #666; font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; width: 20%; transition: 0.3s; }
-        .nav-item.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); transform: translateY(-3px); }
-        .nav-item i { font-size: 20px; margin-bottom: 5px; }
-
-        /* HUD & RANKING */
-        #hud-top { position: absolute; top: 20px; left: 20px; z-index: 20; pointer-events: none; }
-        .hud-pill { background: rgba(0,0,0,0.8); border-left: 3px solid var(--neon-cyan); padding: 6px 12px; border-radius: 4px; color: #fff; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: monospace; }
-        .rank-item { display: flex; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 8px; background: rgba(255,255,255,0.05); border-bottom: 1px solid #333; font-size: 13px; }
-
-        /* GUIDE (ACCORDION) */
-        .guide-container { border: 1px solid #333; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-        .guide-item { border-bottom: 1px solid #333; background: rgba(255,255,255,0.02); }
-        .guide-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; color: #eee; font-weight: bold; }
-        .guide-content { display: none; padding: 15px; background: rgba(0,0,0,0.5); color: #bbb; font-size: 13px; line-height: 1.6; }
-        .guide-item.active .guide-content { display: block; }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* UI STYLES (Aynen korundu) */
+        #value-table { position: absolute; top: 10px; left: 10px; background: rgba(17, 24, 39, 0.95); border: 1px solid #374151; border-radius: 8px; padding: 8px; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5); min-width: 150px; }
+        #value-table h3 { margin: 0 0 5px 0; font-size: 10px; color: #9ca3af; text-transform: uppercase; text-align: center; border-bottom: 1px solid #374151; padding-bottom: 3px; }
+        .val-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; font-size: 10px; color: #e5e7eb; }
+        .coin-mini-icon { width: 14px; height: 14px; margin-right: 5px; border-radius: 50%; vertical-align: middle; }
+        .coin-fixed-val { font-family: monospace; color: #60a5fa; font-weight: bold; font-size: 10px; }
+        #session-score-panel { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.6); padding: 5px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); pointer-events: none; display: flex; align-items: center; gap: 5px; opacity: 0; transition: opacity 0.3s; }
+        #session-score-panel.visible { opacity: 1; }
+        .session-lbl { font-size: 10px; color: #aaa; font-weight: bold; }
+        .session-val { font-size: 12px; font-weight: bold; color: #4ade80; letter-spacing: 1px; }
+        #wallet-btn-open { position: absolute; top: 10px; right: 10px; background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; z-index: 15; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); font-size: 12px; display: flex; align-items: center; gap: 5px; }
+        #wallet-btn-open:active { transform: scale(0.95); }
+        #withdraw-modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .withdraw-box { background: #1f2937; width: 100%; max-width: 400px; border-radius: 12px; border: 1px solid #374151; padding: 20px; max-height: 90vh; overflow-y: auto; }
+        .w-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .w-title { font-size: 18px; font-weight: bold; color: #fff; }
+        .w-close { background: none; border: none; color: #9ca3af; font-size: 24px; cursor: pointer; }
+        .coin-withdraw-row { background: #111827; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #374151; }
+        .cw-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .cw-name { font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .cw-bal { font-family: monospace; color: #fbbf24; font-size: 12px; }
+        .progress-track { width: 100%; height: 8px; background: #374151; border-radius: 4px; margin: 8px 0; overflow: hidden; }
+        .progress-bar { height: 100%; background: #10b981; width: 0%; transition: width 0.5s; }
+        .cw-info { display: flex; justify-content: space-between; font-size: 10px; color: #6b7280; margin-bottom: 10px; }
+        .wallet-input { width: 100%; background: #0b0e14; border: 1px solid #374151; color: white; padding: 8px; border-radius: 4px; font-size: 12px; margin-bottom: 5px; box-sizing: border-box; }
+        .wallet-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .w-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; background: #374151; color: #9ca3af; transition: 0.2s; }
+        .w-btn.active { background: #10b981; color: white; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3); }
+        .w-btn.active:active { transform: scale(0.98); }
+        #ui-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 110px; background: #111827; border-top: 2px solid #1f2937; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 20; }
+        .stat-group { display: flex; flex-direction: column; }
+        .stat-title { font-size: 10px; color: #6b7280; font-weight: bold; }
+        .stat-num { font-size: 24px; color: #34d399; font-weight: 900; font-family: monospace; }
+        #drop-btn { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; width: 100px; height: 50px; font-size: 18px; font-weight: 900; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 0 #1d4ed8; }
+        #drop-btn:active { transform: translateY(4px); box-shadow: none; }
+        #drop-btn:disabled { background: #374151; color: #6b7280; box-shadow: none; }
+        #modal-overlay, #ad-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 90; }
+        .modal-box { background: #1f2937; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #374151; width: 85%; max-width: 320px; }
+        .loader { border: 4px solid #333; border-top: 4px solid #fff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #374151; font-size: 13px; color: #e5e7eb; }
+        .summary-row:last-child { border-bottom: none; }
+        .sum-val { font-family: monospace; color: #4ade80; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="loadingScreen">
-        <div class="loader"></div>
-        <h2 style="color:var(--neon-cyan); letter-spacing:3px;">NEON MINER</h2>
-        <p id="statusText" style="color:#666; font-size:12px;">Telegram ID doğrulanıyor...</p>
-        <div id="errorLog" style="color:var(--neon-red); font-size:10px; margin-top:20px; max-width:80%; text-align:center; display:none; background:rgba(255,0,0,0.1); padding:10px; border-radius:5px;"></div>
+    <div id="value-table">
+        <h3>BALL VALUES</h3>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-btc" class="coin-mini-icon">BTC</div> <span class="coin-fixed-val">0.00000001</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-eth" class="coin-mini-icon">ETH</div> <span class="coin-fixed-val">0.0000006</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-trx" class="coin-mini-icon">TRX</div> <span class="coin-fixed-val">0.001</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-usdt" class="coin-mini-icon">USDT</div> <span class="coin-fixed-val">0.002</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-str" class="coin-mini-icon">STR</div> <span class="coin-fixed-val">5.000</span></div>
     </div>
 
-    <div id="gameView" class="view-section active">
-        <canvas id="gameCanvas"></canvas>
-        <div id="hud-top"></div>
-        <div id="startContainer" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:50;">
-            <div style="width:160px; height:160px; border:2px solid var(--neon-cyan); border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; box-shadow:0 0 40px var(--neon-cyan);" onclick="startGame()">
-                <h2 data-lang="start">BAŞLAT</h2>
+    <div id="session-score-panel">
+        <span class="session-lbl">SESSION:</span>
+        <span class="session-val">ACTIVE</span>
+    </div>
+
+    <button id="wallet-btn-open" onclick="window.game.openWithdrawModal()">💰 WALLET & WITHDRAW</button>
+
+    <div id="withdraw-modal">
+        <div class="withdraw-box">
+            <div class="w-header">
+                <span class="w-title">WITHDRAWAL SCREEN</span>
+                <button class="w-close" onclick="window.game.closeWithdrawModal()">&times;</button>
             </div>
-            <p style="color:#aaa; margin-top:20px; font-size:12px;" data-lang="moveDesc">DOKUN VE BAŞLA</p>
-        </div>
-        <div id="gameOverUI" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; display: none; z-index: 60; text-align: center;">
-            <div class="neon-card" style="border-color: var(--neon-red);">
-                <h2 style="color: var(--neon-red);" data-lang="gameOver">SİSTEM ÇÖKTÜ</h2>
-                <div id="sessionStats" style="margin: 20px 0; color: #fff; text-align: left; font-family: monospace;"></div>
-                <button class="neon-btn gold" onclick="watchAd()" data-lang="recover">KURTAR (2X)</button>
-                <button class="neon-btn" onclick="goToWalletFromGame()" data-lang="goToWallet">CÜZDANA GİT</button>
-            </div>
+            <div id="withdraw-list"></div>
         </div>
     </div>
 
-    <div id="walletView" class="view-section">
-        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navWallet">CÜZDAN</h2>
-        <div id="walletList"></div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
-    <div id="newsView" class="view-section">
-        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navNews">HABERLER</h2>
-        <div class="neon-card" style="border-color:#0088cc;">
-            <h3 style="color:#0088cc; margin:0;" data-lang="tgTitle">TOPLULUK</h3>
-            <button class="neon-btn" style="border-color:#0088cc; margin-top:10px;" onclick="window.open('https://telegram.org')" data-lang="tgJoin">KATIL</button>
-        </div>
-        <div class="neon-card" style="border-color:var(--neon-gold);">
-            <h3 style="color:var(--neon-gold); margin:0;" data-lang="guideTitle">KILAVUZ</h3>
-            <div class="guide-container" id="guideContainer"></div>
+    <div id="ad-overlay">
+        <div style="color:#fff; text-align:center;">
+            <h3>WATCHING AD</h3>
+            <div class="loader" style="margin:20px auto;"></div>
+            <p id="ad-timer">3</p>
         </div>
     </div>
 
-    <div id="champView" class="view-section">
-        <div style="text-align:center; padding: 20px;">
-            <h2 style="color: var(--neon-gold); margin:0;" data-lang="navChamp">LİG</h2>
-            <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:8px; margin-top:15px; padding:4px;">
-                <button id="tabDaily" class="neon-btn active" style="margin:0; border:none; background:var(--neon-cyan); color:#000;" onclick="switchLbTab('daily')" data-lang="lbDaily">GÜNLÜK</button>
-                <button id="tabRef" class="neon-btn" style="margin:0; border:none; background:transparent; color:#888;" onclick="switchLbTab('ref')" data-lang="lbRef">AYLIK</button>
-            </div>
-        </div>
-        <div id="rankContainer" style="padding: 0 15px;"></div>
-    </div>
-
-    <div id="settingsView" class="view-section">
-        <h2 style="text-align:center; color:var(--neon-cyan); margin-top:30px;" data-lang="navSettings">AYARLAR</h2>
-        <div class="neon-card">
-            <p style="color:#888; font-size:12px;" data-lang="langTitle">DİL</p>
-            <button class="neon-btn" onclick="openLangModal()"><span id="activeLangName">🇹🇷 Türkçe</span></button>
-        </div>
-        <div class="neon-card" style="border-color:var(--neon-gold);">
-            <h3 style="color:var(--neon-gold); margin:0;" data-lang="refTitle">REFERANS</h3>
-            <div style="display:flex; gap:10px; margin:15px 0;">
-                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;">
-                    <div style="font-size:18px; color:var(--neon-gold);" id="totalRefs">0</div>
-                    <div style="font-size:10px; color:#888;" data-lang="refMembers">ÜYE</div>
-                </div>
-                <div style="flex:1; background:rgba(0,0,0,0.5); padding:10px; text-align:center; border-radius:8px;">
-                    <div style="font-size:18px; color:var(--neon-gold);" id="totalComm">0</div>
-                    <div style="font-size:10px; color:#888;" data-lang="refEarnings">KAZANÇ</div>
-                </div>
-            </div>
-            <input type="text" id="myRefLink" class="neon-card" style="width:100%; margin:10px 0; background:#000; font-size:11px; padding:10px; color:var(--neon-gold);" readonly>
-            <button class="neon-btn gold" onclick="copyRefLink()" id="copyBtn">LİNKİ KOPYALA</button>
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <h2 style="color:#fff; margin-top:0;">SESSION COMPLETE</h2>
+            <p style="color:#9ca3af; font-size:12px; margin-bottom:15px;">Your earnings this round:</p>
+            <div id="round-summary" style="margin-bottom:20px; background:#111827; padding:10px; border-radius:8px;"></div>
+            <button onclick="window.game.triggerAd()" style="background:#10b981; color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 4px 0 #059669;">
+                CLAIM TO WALLET &<br>RESTART (WATCH AD)
+            </button>
         </div>
     </div>
 
-    <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('game')" id="nav-game"><i class="fas fa-gamepad"></i><span data-lang="navGame">OYUN</span></div>
-        <div class="nav-item" onclick="switchTab('news')" id="nav-news"><i class="fas fa-newspaper"></i><span data-lang="navNews">HABER</span></div>
-        <div class="nav-item" onclick="switchTab('champ')" id="nav-champ"><i class="fas fa-trophy"></i><span data-lang="navChamp">LİG</span></div>
-        <div class="nav-item" onclick="switchTab('wallet')" id="nav-wallet"><i class="fas fa-wallet"></i><span data-lang="navWallet">CÜZDAN</span></div>
-        <div class="nav-item" onclick="switchTab('settings')" id="nav-settings"><i class="fas fa-cog"></i><span data-lang="navSettings">AYAR</span></div>
-    </div>
-
-    <div id="modalOverlay">
-        <div style="background:#111; border:1px solid var(--neon-cyan); border-radius:20px; width:85%; max-height:80%; overflow-y:auto; padding:20px;">
-            <h3 style="color:var(--neon-cyan); margin-top:0;" data-lang="langTitle">DİL SEÇİMİ</h3>
-            <div id="langList" class="lang-grid"></div>
+    <div id="ui-bar">
+        <button onclick="window.game.triggerAd()" style="background:#10b981; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; font-size:12px; box-shadow: 0 3px 0 #059669; transition:0.1s;">CLAIM<br>BALLS</button>
+        <div class="stat-group">
+            <span class="stat-title">BALLS LEFT</span>
+            <span class="stat-num" id="balls-left">10</span>
         </div>
+        <button id="drop-btn" disabled>LOADING...</button>
     </div>
 
-<script>
-    // --- FIREBASE CONFIG ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyBqsuakQQOdm1NcWLjYyMTyiLpGmoBh7iA",
-      authDomain: "faucet-game.firebaseapp.com",
-      projectId: "faucet-game",
-      storageBucket: "faucet-game.firebasestorage.app",
-      messagingSenderId: "258577212321",
-      appId: "1:258577212321:web:302ebdcc27568e9c9e21e0",
-      measurementId: "G-DXE818SCVE"
-    };
+    <script type="module">
+        // 1. FIREBASE IMPORTS
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    const BOT_USERNAME = "faucetgamebot";
-    let db, auth, telegramID = "demo_" + Math.floor(Math.random()*9999);
-    let referrerID = null;
-    let user = { balances:{BTC:0,ETH:0,USDT:0,TRX:0}, addresses:{BTC:'',ETH:'',USDT:'',TRX:''}, lang:'tr', referrals:[], totalComm:0, lbData: {daily:[], ref:[], lastUpdate:0} };
+        // 2. FIREBASE CONFIG (BURAYI KENDİ PROJENLE DOLDUR)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCEfbxvL_RyxzRHC6O6SDSMQ_mHezIFCDw",
+  authDomain: "plinko-faucet.firebaseapp.com",
+  projectId: "plinko-faucet",
+  storageBucket: "plinko-faucet.firebasestorage.app",
+  messagingSenderId: "945891210512",
+  appId: "1:945891210512:web:eb66f91746bd8c8c032195",
+        };
 
-    // --- DICTIONARY (11 LANGUAGES) ---
-    const i18n = {
-        tr: { start:"BAŞLAT", moveDesc:"DOKUN VE KEŞFET", navGame:"OYUN", navNews:"HABER", navChamp:"LİG", navWallet:"CÜZDAN", navSettings:"AYAR", refTitle:"REFERANS", refDesc:"%30 Komisyon.", tgTitle:"TOPLULUK", tgJoin:"KATIL", guideTitle:"KILAVUZ", g1t:"Oyun", g1d:"Parmağını sürükle, coin topla.", g2t:"Ayılar", g2d:"Kırmızı ayılardan kaç!", g3t:"Çekim", g3d:"1M olunca çek.", g4t:"Ref", g4d:"%30 kazan.", refMembers:"ÜYE", refEarnings:"KAZANÇ", gameOver:"SİSTEM ÇÖKTÜ", recover:"KURTAR (2X)", goToWallet:"CÜZDAN", langTitle:"DİL", lbDaily:"GÜNLÜK", lbRef:"AYLIK", you:"SEN", withdraw:"ÇEKİM", limit:"1M GEREKLİ", addrPlace:"Adres", sentMsg:"Talep Alındı!" },
-        en: { start:"START", moveDesc:"TOUCH TO EXPLORE", navGame:"GAME", navNews:"NEWS", navChamp:"RANK", navWallet:"WALLET", navSettings:"SETTINGS", refTitle:"REFERRAL", refDesc:"30% Comm.", tgTitle:"COMMUNITY", tgJoin:"JOIN", guideTitle:"GUIDE", g1t:"Play", g1d:"Drag finger, collect coins.", g2t:"Bears", g2d:"Avoid red bears!", g3t:"Withdraw", g3d:"Withdraw at 1M.", g4t:"Ref", g4d:"Earn 30%.", refMembers:"MEMBERS", refEarnings:"EARNINGS", gameOver:"SYSTEM CRASH", recover:"RECOVER (2X)", goToWallet:"WALLET", langTitle:"LANGUAGE", lbDaily:"DAILY", lbRef:"MONTHLY", you:"YOU", withdraw:"WITHDRAW", limit:"1M REQ.", addrPlace:"Address", sentMsg:"Sent!" },
-        de: { start:"START", moveDesc:"BERÜHREN", navGame:"SPIEL", navNews:"NEWS", navChamp:"RANG", navWallet:"BÖRSE", navSettings:"SETTING", refTitle:"REFERENZ", refDesc:"30% Prov.", tgTitle:"GEMEINSCHAFT", tgJoin:"BEITRETEN", guideTitle:"ANLEITUNG", g1t:"Spiel", g1d:"Sammeln.", g2t:"Bären", g2d:"Vermeiden!", g3t:"Auszahlung", g3d:"Ab 1M.", g4t:"Ref", g4d:"30% Gewinn.", refMembers:"MITGLIEDER", refEarnings:"GEWINN", gameOver:"ABSTURZ", recover:"RETTEN", goToWallet:"BÖRSE", langTitle:"SPRACHE", lbDaily:"TÄGLICH", lbRef:"MONAT", you:"DU", withdraw:"AUSZ.", limit:"1M NÖTIG", addrPlace:"Adresse", sentMsg:"Gesendet!" },
-        es: { start:"INICIAR", moveDesc:"MUEVE", navGame:"JUEGO", navNews:"NOTICIAS", navChamp:"RANGO", navWallet:"CARTERA", navSettings:"AJUSTE", refTitle:"REFERIDOS", refDesc:"30% Com.", tgTitle:"COMUNIDAD", tgJoin:"UNIRSE", guideTitle:"GUÍA", g1t:"Juego", g1d:"Recoge.", g2t:"Osos", g2d:"¡Evita osos!", g3t:"Retiro", g3d:"1M mínimo.", g4t:"Ref", g4d:"Gana 30%.", refMembers:"MIEMBROS", refEarnings:"GANANCIAS", gameOver:"FALLO", recover:"RECOUP (2X)", goToWallet:"CARTERA", langTitle:"IDIOMA", lbDaily:"DIARIO", lbRef:"MENSUAL", you:"TÚ", withdraw:"RETIRAR", limit:"1M REQ.", addrPlace:"Dirección", sentMsg:"¡Enviado!" },
-        fr: { start:"DÉMARRER", moveDesc:"BOUGEZ", navGame:"JEU", navNews:"ACTUS", navChamp:"RANG", navWallet:"WALLET", navSettings:"RÉGLAGE", refTitle:"PARRAINAGE", refDesc:"30% Comm.", tgTitle:"COMMUNAUTÉ", tgJoin:"REJOINDRE", guideTitle:"GUIDE", g1t:"Jeu", g1d:"Collectez.", g2t:"Ours", g2d:"Évitez-les!", g3t:"Retrait", g3d:"1M requis.", g4t:"Ref", g4d:"Gagnez 30%.", refMembers:"MEMBRES", refEarnings:"GAINS", gameOver:"PANNE", recover:"RÉCUPÉRER", goToWallet:"WALLET", langTitle:"LANGUE", lbDaily:"JOUR", lbRef:"MOIS", you:"VOUS", withdraw:"RETIRER", limit:"1M REQUIS", addrPlace:"Adresse", sentMsg:"Envoyé!" },
-        ru: { start:"СТАРТ", moveDesc:"ДВИГАЙСЯ", navGame:"ИГРА", navNews:"НОВОСТИ", navChamp:"ТОП", navWallet:"КОШЕЛЕК", navSettings:"НАСТР", refTitle:"РЕФЕРАЛ", refDesc:"30% ком.", tgTitle:"СООБЩЕСТВО", tgJoin:"ВСТУПИТЬ", guideTitle:"ГАЙД", g1t:"Игра", g1d:"Собирай.", g2t:"Медведи", g2d:"Избегай!", g3t:"Вывод", g3d:"От 1М.", g4t:"Реф", g4d:"30% доход.", refMembers:"УЧАСТНИКИ", refEarnings:"ДОХОD", gameOver:"СБОЙ", recover:"ВОССТ", goToWallet:"КОШЕЛЕК", langTitle:"ЯЗЫК", lbDaily:"ДЕНЬ", lbRef:"МЕСЯЦ", you:"ВЫ", withdraw:"ВЫВОД", limit:"1М НУЖНО", addrPlace:"Адрес", sentMsg:"Отправлено!" },
-        pt: { start:"INICIAR", moveDesc:"MOVA", navGame:"JOGO", navNews:"NOTÍCIAS", navChamp:"RANK", navWallet:"CARTEIRA", navSettings:"AJUSTE", refTitle:"REFERÊNCIA", refDesc:"30% Comm.", tgTitle:"COMUNIDADE", tgJoin:"ENTRAR", guideTitle:"GUIA", g1t:"Jogo", g1d:"Colete.", g2t:"Ursos", g2d:"Evite-os!", g3t:"Saque", g3d:"1M req.", g4t:"Ref", g4d:"Ganha 30%.", refMembers:"MEMBROS", refEarnings:"GANHOS", gameOver:"ERRO", recover:"RECUPERAR", goToWallet:"CARTERA", langTitle:"IDIOMA", lbDaily:"DIÁRIO", lbRef:"MENSAL", you:"VOCÊ", withdraw:"SACAR", limit:"1M REQ.", addrPlace:"Endereço", sentMsg:"Enviado!" },
-        id: { start:"MULAI", moveDesc:"GERAK", navGame:"MAIN", navNews:"BERITA", navChamp:"RANK", navWallet:"DOMPET", navSettings:"SETTING", refTitle:"REFERRAL", refDesc:"30% Kom.", tgTitle:"KOMUNITAS", tgJoin:"GABUNG", guideTitle:"PANDUAN", g1t:"Main", g1d:"Kumpulkan.", g2t:"Beruang", g2d:"Hindari!", g3t:"Tarik", g3d:"1M req.", g4t:"Ref", g4d:"Dapat 30%.", refMembers:"ANGGOTA", refEarnings:"PENDAPATAN", gameOver:"ERROR", recover:"PULIHKAN", goToWallet:"DOMPET", langTitle:"BAHASA", lbDaily:"HARIAN", lbRef:"BULANAN", you:"ANDA", withdraw:"TARIK", limit:"BUTUH 1M", addrPlace:"Alamat", sentMsg:"Terkirim!" },
-        ja: { start:"スタート", moveDesc:"動く", navGame:"ゲーム", navNews:"ニュース", navChamp:"ランク", navWallet:"財布", navSettings:"設定", refTitle:"紹介", refDesc:"30%獲得.", tgTitle:"コミュニティ", tgJoin:"参加", guideTitle:"ガイド", g1t:"プレイ", g1d:"集める.", g2t:"熊", g2d:"避ける!", g3t:"出金", g3d:"1Mから.", g4t:"紹介", g4d:"30%稼ぐ.", refMembers:"メンバー", refEarnings:"収益", gameOver:"エラー", recover:"回復", goToWallet:"財布", langTitle:"言語", lbDaily:"毎日", lbRef:"毎月", you:"あなた", withdraw:"出金", limit:"1M必要", addrPlace:"アドレス", sentMsg:"送信!" },
-        ko: { start:"시작", moveDesc:"이동", navGame:"게임", navNews:"뉴스", navChamp:"랭킹", navWallet:"지갑", navSettings:"설정", refTitle:"추천", refDesc:"30% 획득.", tgTitle:"커뮤니티", tgJoin:"참여", guideTitle:"가이드", g1t:"게임", g1d:"수집.", g2t:"곰", g2d:"피하기!", g3t:"출금", g3d:"1M 부터.", g4t:"추천", g4d:"30% 수익.", refMembers:"멤버", refEarnings:"수익", gameOver:"오류", recover:"복구", goToWallet:"지갑", langTitle:"언어", lbDaily:"매일", lbRef:"매월", you:"나", withdraw:"출금", limit:"1M 필요", addrPlace:"주소", sentMsg:"전송!" },
-        hi: { start:"शुरू", moveDesc:"हिलें", navGame:"खेल", navNews:"समाचार", navChamp:"रैंक", navWallet:"वॉलेट", navSettings:"सेटिंग", refTitle:"रेफरल", refDesc:"30% कमी.", tgTitle:"समुदाय", tgJoin:"जुड़ें", guideTitle:"गाइड", g1t:"खेल", g1d:"जमा करें.", g2t:"भालू", g2d:"बचें!", g3t:"निकासी", g3d:"1M आवश्यक.", g4t:"रेफरल", g4d:"30% कमाएं.", refMembers:"सदस्य", refEarnings:"कमाई", gameOver:"क्रैश", recover:"पुनर्प्राप्त", goToWallet:"वॉलेट", langTitle:"भाषा", lbDaily:"दैनिक", lbRef:"मासिक", you:"आप", withdraw:"निकासी", limit:"1M जरूरी", addrPlace:"पता", sentMsg:"भेजा!" }
-    };
-    const LANGUAGES=[{code:'tr',name:'Türkçe',flag:'🇹🇷'},{code:'en',name:'English',flag:'🇺🇸'},{code:'de',name:'Deutsch',flag:'🇩🇪'},{code:'es',name:'Español',flag:'🇪🇸'},{code:'fr',name:'Français',flag:'🇫🇷'},{code:'ru',name:'Русский',flag:'🇷🇺'},{code:'pt',name:'Português',flag:'🇵🇹'},{code:'id',name:'Indonesia',flag:'🇮🇩'},{code:'ja',name:'日本語',flag:'🇯🇵'},{code:'ko',name:'한국어',flag:'🇰🇷'},{code:'hi',name:'हिन्दी',flag:'🇮🇳'}];
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    function t(key){ return (i18n[user.lang]||i18n.en)[key]||key; }
+        // 3. TELEGRAM USER DATA
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Mini App'i tam ekran yap
+        
+        // Kullanıcı ID'sini al (Test için random atar eğer Telegramda değilse)
+        const userId = tg.initDataUnsafe?.user?.id ? tg.initDataUnsafe.user.id.toString() : "test_user_" + Math.floor(Math.random()*1000);
+        const username = tg.initDataUnsafe?.user?.first_name || "Unknown";
 
-    // --- INITIALIZATION ---
-    window.onload = function() {
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            auth = firebase.auth();
-            const tg = window.Telegram.WebApp;
-            tg.expand();
+        // --- GAME VARIABLES ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-            if(tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                telegramID = tg.initDataUnsafe.user.id.toString();
-                referrerID = tg.initDataUnsafe.start_param;
+        const COINS = [
+            { id: 'btc',  baseVal: 0.00000001, currentBalance: 0, minWithdraw: 0.0001, src: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025', color: '#f7931a', decimals: 8 },
+            { id: 'eth',  baseVal: 0.0000006,  currentBalance: 0, minWithdraw: 0.001,   src: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025', color: '#627eea', decimals: 7 },
+            { id: 'trx',  baseVal: 0.001,      currentBalance: 0, minWithdraw: 50,      src: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025', color: '#ef0027', decimals: 3 },
+            { id: 'usdt', baseVal: 0.002,      currentBalance: 0, minWithdraw: 10,      src: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', color: '#26a17b', decimals: 3 },
+            { id: 'str',  baseVal: 5.0,        currentBalance: 0, minWithdraw: 20000,   src: 'https://cdn-icons-png.flaticon.com/512/616/616490.png', color: '#ffffff', decimals: 2 }
+        ];
+
+        const ROWS = 14; const GRAVITY = 0.55; const FRICTION = 0.98; const BOUNCE = 0.55; const UI_HEIGHT = 110; 
+        const MULTIPLIERS = [10, 5, 2, 1, 0.5, 0.2, 0.2, 0.2, 0.5, 1, 2, 5, 10];
+
+        let width, height;
+        let ballQueue = []; let pegs = []; let balls = []; let slots = []; let particles = []; let popups = [];
+        let lastDropTime = 0;
+        let sessionGains = {};
+
+        // UI Refs
+        const ballsLeftEl = document.getElementById('balls-left');
+        const dropBtn = document.getElementById('drop-btn');
+        const modal = document.getElementById('modal-overlay');
+        const roundSummaryEl = document.getElementById('round-summary');
+        const adOverlay = document.getElementById('ad-overlay');
+        const adTimerEl = document.getElementById('ad-timer');
+        const withdrawModal = document.getElementById('withdraw-modal');
+        const withdrawList = document.getElementById('withdraw-list');
+        const sessionPanel = document.getElementById('session-score-panel');
+
+        // --- FIREBASE FUNCTIONS ---
+
+        async function loadUserData() {
+            try {
+                const userRef = doc(db, "users", userId);
+                const docSnap = await getDoc(userRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    COINS.forEach(c => {
+                        if (data.balances && data.balances[c.id] !== undefined) {
+                            c.currentBalance = parseFloat(data.balances[c.id]);
+                        }
+                    });
+                } else {
+                    // Yeni kullanıcı oluştur
+                    const initialBalances = {};
+                    COINS.forEach(c => initialBalances[c.id] = 0);
+                    await setDoc(userRef, {
+                        username: username,
+                        createdAt: serverTimestamp(),
+                        balances: initialBalances
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading data: ", e);
+                // Firebase hatası olursa offline devam etmesin diye uyarı verilebilir veya sessiz kalınabilir
             }
+        }
 
-            // AUTH & LOAD
-            auth.signInAnonymously().then(() => {
-                const userRef = db.collection('users').doc(telegramID);
-                userRef.get().then(doc => {
-                    if(doc.exists) {
-                        user = {...user, ...doc.data()};
-                        finishLoad();
+        async function saveUserData() {
+            try {
+                const balancesToSave = {};
+                COINS.forEach(c => balancesToSave[c.id] = c.currentBalance);
+                
+                const userRef = doc(db, "users", userId);
+                await updateDoc(userRef, {
+                    balances: balancesToSave,
+                    lastActive: serverTimestamp()
+                });
+            } catch (e) {
+                console.error("Error saving data: ", e);
+            }
+        }
+
+        async function createWithdrawRequest(coinId, amount, address) {
+            try {
+                await addDoc(collection(db, "withdrawals"), {
+                    userId: userId,
+                    username: username,
+                    coin: coinId,
+                    amount: amount,
+                    address: address,
+                    status: "pending",
+                    createdAt: serverTimestamp()
+                });
+                return true;
+            } catch (e) {
+                console.error("Error creating withdrawal: ", e);
+                return false;
+            }
+        }
+
+        // --- GAME FUNCTIONS (Exposed globally for HTML onClick) ---
+        window.game = {
+            openWithdrawModal: () => {
+                renderWithdrawList();
+                withdrawModal.style.display = 'flex';
+            },
+            closeWithdrawModal: () => {
+                withdrawModal.style.display = 'none';
+            },
+            requestWithdraw: async (coinId) => {
+                const coin = COINS.find(c => c.id === coinId);
+                const addrInput = document.getElementById(`addr-${coinId}`);
+                const address = addrInput.value.trim();
+
+                if (address.length < 5) {
+                    alert("Please enter a valid wallet address!");
+                    return;
+                }
+
+                if (confirm(`Do you want to withdraw ${coin.currentBalance.toFixed(coin.decimals)} ${coin.id.toUpperCase()}?`)) {
+                    // Bakiyeyi yerelde düşür
+                    const amount = coin.currentBalance;
+                    coin.currentBalance = 0;
+                    
+                    // Firebase'e kaydet (Bakiye güncelle ve Çekim isteği oluştur)
+                    await saveUserData(); 
+                    const success = await createWithdrawRequest(coin.id, amount, address);
+
+                    if(success) {
+                        alert("✅ Withdrawal request sent successfully!");
+                        renderWithdrawList();
                     } else {
-                        if(referrerID && referrerID !== telegramID) {
-                            giveReward(referrerID).then(() => { saveData(); finishLoad(); });
-                        } else { saveData(); finishLoad(); }
+                        alert("❌ Error sending request. Please try again.");
+                        coin.currentBalance = amount; // İade et
+                        saveUserData();
+                    }
+                }
+            },
+            triggerAd: () => {
+                // Claim session earnings
+                let hasGain = false;
+                COINS.forEach(c => {
+                    if(sessionGains[c.id]) {
+                        c.currentBalance += sessionGains[c.id];
+                        hasGain = true;
                     }
                 });
-            }).catch(e => {
-                document.getElementById('errorLog').style.display='block';
-                document.getElementById('errorLog').innerText = "Auth Error: " + e.message;
-            });
-        } catch(e) { alert("Start Error: " + e.message); }
-    };
+                
+                if(hasGain) saveUserData(); // Firebase'e yaz
 
-    async function giveReward(refID) {
-        try {
-            const refRef = db.collection('users').doc(refID);
-            await db.runTransaction(async (transaction) => {
-                const doc = await transaction.get(refRef);
-                if(!doc.exists) return;
-                transaction.update(refRef, {
-                    totalComm: firebase.firestore.FieldValue.increment(50000),
-                    "balances.USDT": firebase.firestore.FieldValue.increment(50000),
-                    referrals: firebase.firestore.FieldValue.arrayUnion(telegramID)
+                modal.style.display = 'none';
+                adOverlay.style.display = 'flex';
+                let timeLeft = 3;
+                adTimerEl.innerText = timeLeft;
+                const timer = setInterval(() => {
+                    timeLeft--;
+                    adTimerEl.innerText = timeLeft;
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        adOverlay.style.display = 'none';
+                        refillBalls();
+                    }
+                }, 1000);
+            }
+        };
+
+        // --- HELPER FUNCTIONS ---
+        function renderWithdrawList() {
+            withdrawList.innerHTML = '';
+            COINS.forEach(coin => {
+                const progress = Math.min((coin.currentBalance / coin.minWithdraw) * 100, 100);
+                const isReady = coin.currentBalance >= coin.minWithdraw;
+                
+                const div = document.createElement('div');
+                div.className = 'coin-withdraw-row';
+                div.innerHTML = `
+                    <div class="cw-top"><div class="cw-name"><img src="${coin.src}" width="16"> ${coin.id.toUpperCase()}</div><div class="cw-bal">${coin.currentBalance.toFixed(coin.decimals)}</div></div>
+                    <div class="progress-track"><div class="progress-bar" style="width: ${progress}%"></div></div>
+                    <div class="cw-info"><span>Min: ${coin.minWithdraw}</span><span>${progress.toFixed(1)}%</span></div>
+                    <input type="text" class="wallet-input" id="addr-${coin.id}" placeholder="${isReady ? 'Enter Wallet Address' : 'Limit Not Reached'}" ${isReady ? '' : 'disabled'}>
+                    <button class="w-btn ${isReady ? 'active' : ''}" onclick="window.game.requestWithdraw('${coin.id}')" ${isReady ? '' : 'disabled'}>
+                        ${isReady ? 'WITHDRAW' : 'INSUFFICIENT BALANCE'}
+                    </button>
+                `;
+                withdrawList.appendChild(div);
+            });
+        }
+
+        let loadedCount = 0;
+        function preload() {
+            loadUserData().then(() => {
+                COINS.forEach(c => {
+                    const img = new Image(); img.src = c.src;
+                    img.onload = () => {
+                        c.img = img; document.getElementById('icon-' + c.id).src = c.src;
+                        loadedCount++;
+                        if (loadedCount === COINS.length) { dropBtn.innerText = "DROP"; init(); }
+                    };
                 });
             });
-        } catch(e) { console.log("Ref Reward Error"); }
-    }
+        }
 
-    function finishLoad() {
-        document.getElementById('loadingScreen').style.display='none';
-        document.getElementById('myRefLink').value = `https://t.me/${BOT_USERNAME}/app?startapp=${telegramID}`;
-        updateAllUI();
-    }
+        function init() {
+            resize(); window.addEventListener('resize', resize);
+            dropBtn.addEventListener('mousedown', tryDropBall);
+            dropBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryDropBall(); });
+            refillBalls(); loop();
+        }
 
-    function saveData() { db.collection('users').doc(telegramID).set(user); }
+        function refillBalls() {
+            ballQueue = [];
+            sessionGains = { btc:0, eth:0, trx:0, usdt:0, str:0 };
+            COINS.forEach(c => { ballQueue.push(c); ballQueue.push(c); });
+            ballQueue.sort(() => Math.random() - 0.5);
+            ballsLeftEl.innerText = ballQueue.length;
+            dropBtn.disabled = false;
+            modal.style.display = 'none';
+            sessionPanel.classList.remove('visible'); 
+        }
 
-    // --- UI UPDATES ---
-    function updateAllUI() {
-        document.querySelectorAll('[data-lang]').forEach(el => el.innerText = t(el.getAttribute('data-lang')));
-        const langObj = LANGUAGES.find(x => x.code === user.lang);
-        document.getElementById('activeLangName').innerText = langObj ? langObj.name : "Türkçe";
-        renderWallet();
-        renderGuide();
-        updateHUD();
-        document.getElementById('totalRefs').innerText = user.referrals.length;
-        document.getElementById('totalComm').innerText = user.totalComm.toLocaleString();
-    }
+        function resize() { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; createBoard(); }
 
-    function renderGuide() {
-        const gc = document.getElementById('guideContainer'); gc.innerHTML = '';
-        ['g1','g2','g3','g4'].forEach(key => {
-            gc.innerHTML += `<div class="guide-item" onclick="this.classList.toggle('active')"><div class="guide-header"><span>${t(key+'t')}</span><i class="fas fa-chevron-down"></i></div><div class="guide-content">${t(key+'d')}</div></div>`;
-        });
-    }
+        function createBoard() {
+            pegs = []; slots = [];
+            const playableHeight = height - UI_HEIGHT;
+            let spacingV = (playableHeight * 0.82) / (ROWS + 2);
+            let spacingH = (width * 0.92) / (ROWS + 1);
+            const spacing = Math.min(spacingV, spacingH);
+            
+            const pegRadius = spacing * 0.11; window.ballR = spacing * 0.22;
+            const startY = playableHeight * 0.18; 
 
-    function renderWallet() {
-        const l = document.getElementById('walletList'); l.innerHTML = '';
-        COINS.forEach(c => {
-            const cur = user.balances[c.id]; const limit = 1000000;
-            let perc = (cur / limit) * 100; if(perc > 100) perc = 100;
-            l.innerHTML += `
-            <div class="neon-card" style="border-color:${c.color}">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="color:${c.color}; margin:0;">${c.id}</h3>
-                    <span style="font-weight:bold;">${cur.toLocaleString()}</span>
-                </div>
-                <div style="height:8px; background:#222; border-radius:4px; margin:15px 0; overflow:hidden;">
-                    <div style="height:100%; width:${perc}%; background:${c.color}; box-shadow: 0 0 10px ${c.color};"></div>
-                </div>
-                <input class="neon-input" value="${user.addresses[c.id]}" placeholder="${t('addrPlace')}" onchange="user.addresses['${c.id}']=this.value;saveData()" style="width:100%;">
-                <button class="neon-btn" onclick="withdraw('${c.id}')" style="opacity:${perc>=100?1:0.5}">${perc>=100 ? t('withdraw') : t('limit')}</button>
-            </div>`;
-        });
-    }
+            for (let row = 2; row < ROWS; row++) {
+                for (let col = 0; col <= row; col++) {
+                    const x = (width / 2) - (row * spacing / 2) + (col * spacing);
+                    const y = startY + row * spacing;
+                    pegs.push({ x, y, r: pegRadius, pulse: 0 });
+                }
+            }
+            const slotY = startY + (ROWS - 1) * spacing;
+            const startX = (width / 2) - ((ROWS) * spacing / 2);
+            const slotW = spacing - 4; const slotH = playableHeight - slotY; 
+            for (let i = 0; i < ROWS + 1; i++) {
+                const x = startX + i * spacing - (spacing/2);
+                let mIndex = Math.floor((i / (ROWS + 1)) * MULTIPLIERS.length);
+                let val = MULTIPLIERS[mIndex] || 0.2;
+                slots.push({ x: x, y: slotY, w: slotW, h: slotH, val: val, color: val >= 5 ? '#ef4444' : (val >= 1 ? '#8b5cf6' : '#1f2937'), active: 0 });
+            }
+        }
 
-    // --- GAME ENGINE ---
-    const IMG_SRCS = { BTC:'https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg', ETH:'https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg', USDT:'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', TRX:'https://cryptologos.cc/logos/tron-trx-logo.png?v=025' };
-    const COIN_IMGS = {}; for(let k in IMG_SRCS) { let i = new Image(); i.src = IMG_SRCS[k]; COIN_IMGS[k] = i; }
-    const cvs = document.getElementById('gameCanvas'); const cx = cvs.getContext('2d');
-    let W, H, isPlaying=false, player={x:0,y:0,trail:[]}, entities=[], bgStars=[], sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}, enemyInterval;
-    const COINS=[{id:'BTC',color:'#f7931a'},{id:'ETH',color:'#627eea'},{id:'USDT',color:'#26a17b'},{id:'TRX',color:'#eb0029'}];
+        function tryDropBall() {
+            const now = Date.now(); if (now - lastDropTime < 400) return; lastDropTime = now;
+            if (ballQueue.length === 0) return;
+            const coin = ballQueue.pop();
+            ballsLeftEl.innerText = ballQueue.length;
+            sessionPanel.classList.add('visible');
+            balls.push({ x: width / 2 + (Math.random()-0.5)*4, y: 70, vx: (Math.random()-0.5)*1, vy: 0, r: window.ballR, coin: coin, dead: false, stuckTimer: 0 });
+            if (ballQueue.length === 0) dropBtn.disabled = true;
+        }
 
-    function resize(){ W=window.innerWidth; H=window.innerHeight; cvs.width=W; cvs.height=H; bgStars=[]; for(let i=0;i<50;i++) bgStars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2,v:Math.random()*0.5}); }
-    window.addEventListener('resize', resize); resize();
+        function update() {
+            let activeCount = 0;
+            for (let b of balls) {
+                if (!b.dead) activeCount++;
+                b.vy += GRAVITY; b.vx *= FRICTION; b.x += b.vx; b.y += b.vy;
+                if (Math.abs(b.vx) < 0.1 && Math.abs(b.vy) < 0.1) { b.stuckTimer++; if (b.stuckTimer > 10) { b.vy += 2; b.vx += (Math.random()-0.5)*2; b.stuckTimer = 0; } } else b.stuckTimer = 0;
 
-    function startGame() { document.getElementById('startContainer').style.display='none'; isPlaying=true; player.trail=[]; entities=[]; sessionEarn={BTC:0,ETH:0,USDT:0,TRX:0}; for(let i=0;i<6;i++) spawnEntity('coin'); clearInterval(enemyInterval); enemyInterval = setInterval(() => { if(isPlaying) spawnEntity('enemy'); }, 1500); loop(); }
-    function spawnEntity(type) {
-        if(type==='coin') { const c = COINS[Math.floor(Math.random()*COINS.length)]; entities.push({type:'coin', x:Math.random()*(W-20)+10, y:Math.random()*(H-20)+10, id:c.id, color:c.color, p:0}); }
-        else { const s=Math.floor(Math.random()*4); let x,y,vx,vy; if(s===0){x=Math.random()*W;y=-30;vx=0;vy=3;}else if(s===1){x=W+30;y=Math.random()*H;vx=-3;vy=0;}else if(s===2){x=Math.random()*W;y=H+30;vx=0;vy=-3;}else{x=-30;y=Math.random()*H;vx=3;vy=0;} entities.push({type:'enemy',x,y,vx,vy}); }
-    }
-    function loop() {
-        if(!isPlaying) return; cx.fillStyle='rgba(5,5,8,0.4)'; cx.fillRect(0,0,W,H);
-        cx.fillStyle="white"; bgStars.forEach(s=>{ s.y+=s.v; if(s.y>H)s.y=0; cx.globalAlpha=0.2; cx.beginPath(); cx.arc(s.x,s.y,s.s,0,Math.PI*2); cx.fill(); }); cx.globalAlpha=1;
-        player.trail.push({x:player.x,y:player.y}); if(player.trail.length>15) player.trail.shift();
-        cx.beginPath(); cx.strokeStyle="rgba(0,243,255,0.4)"; cx.lineWidth=3; for(let i=0;i<player.trail.length-1;i++) { cx.moveTo(player.trail[i].x,player.trail[i].y); cx.lineTo(player.trail[i+1].x,player.trail[i+1].y); } cx.stroke();
-        cx.shadowBlur=15; cx.shadowColor=var(--neon-cyan); cx.fillStyle='#fff'; cx.beginPath(); cx.arc(player.x,player.y,10,0,Math.PI*2); cx.fill(); cx.shadowBlur=0;
-        entities.forEach((e,i)=>{
-            if(e.type==='coin'){
-                e.p+=0.1; let r=14+Math.sin(e.p)*2; let img=COIN_IMGS[e.id];
-                if(img.complete) cx.drawImage(img, e.x-r, e.y-r, r*2, r*2); else { cx.fillStyle=e.color; cx.beginPath(); cx.arc(e.x,e.y,r,0,Math.PI*2); cx.fill(); }
-                if(Math.hypot(player.x-e.x,player.y-e.y)<30){ user.balances[e.id]+=1000; sessionEarn[e.id]+=1000; entities.splice(i,1); spawnEntity('coin'); updateHUD(); saveData(); }
-            } else { e.x+=e.vx; e.y+=e.vy; cx.font="25px Arial"; cx.fillText("🐻", e.x-12, e.y+10); if(Math.hypot(player.x-e.x,player.y-e.y)<25) gameOver(); if(e.x<-50||e.x>W+50||e.y<-50||e.y>H+50) entities.splice(i,1); }
-        }); requestAnimationFrame(loop);
-    }
-    cvs.addEventListener('touchmove', e => { e.preventDefault(); player.x=e.touches[0].clientX; player.y=e.touches[0].clientY; }, {passive:false});
-    function gameOver() { isPlaying=false; clearInterval(enemyInterval); document.getElementById('gameOverUI').style.display='block'; let h=''; for(let k in sessionEarn) if(sessionEarn[k]>0) h+=`<div style='display:flex;justify-content:space-between;padding:5px;'><span>${k}</span><span>+${sessionEarn[k]}</span></div>`; document.getElementById('sessionStats').innerHTML=h||"0"; saveData(); }
+                for (let p of pegs) {
+                    let dx = b.x - p.x; let dy = b.y - p.y; let dist = Math.hypot(dx, dy);
+                    if (dist < p.r + b.r) {
+                        let angle = Math.atan2(dy, dx); let speed = Math.hypot(b.vx, b.vy) * BOUNCE; if (speed<1.2) speed=1.2;
+                        b.vx = Math.cos(angle)*speed + (Math.random()-0.5)*0.2; b.vy = Math.sin(angle)*speed;
+                        let overlap = (p.r + b.r) - dist; b.x += Math.cos(angle)*overlap; b.y += Math.sin(angle)*overlap; p.pulse = 5;
+                    }
+                }
+                if (slots.length > 0 && b.y > slots[0].y) {
+                    for (let s of slots) { if (b.x > s.x && b.x < s.x + s.w) { finishBall(b, s); break; } }
+                    if (b.y > height) b.dead = true;
+                }
+            }
+            if (particles.length > 80) particles.splice(0, particles.length - 80);
+            if (ballQueue.length === 0 && activeCount === 0 && balls.length > 0) setTimeout(showSummary, 800);
 
-    // --- OTHER UI LOGIC ---
-    window.switchTab = function(t) { document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active')); document.getElementById(t+'View').classList.add('active'); document.getElementById('nav-'+t).classList.add('active'); if(t==='wallet') renderWallet(); if(t==='champ') initLB(); };
-    window.openLangModal=()=>{ document.getElementById('modalOverlay').style.display='flex'; const l=document.getElementById('langList'); l.innerHTML=''; LANGUAGES.forEach(x=>{ l.innerHTML+=`<div class="lang-item" onclick="changeLang('${x.code}')">${x.flag} ${x.name}</div>`; }); }
-    window.changeLang=(c)=>{ user.lang=c; saveData(); updateAllUI(); document.getElementById('modalOverlay').style.display='none'; }
-    window.copyRefLink=()=>{ const c=document.getElementById('myRefLink'); c.select(); document.execCommand('copy'); document.getElementById('copyBtn').innerText='KOPYALANDI!'; setTimeout(()=>document.getElementById('copyBtn').innerText='LİNKİ KOPYALA',2000); }
-    window.updateHUD=()=>{ const h=document.getElementById('hud-top'); h.innerHTML=''; COINS.forEach(c=>{ h.innerHTML+=`<div class="hud-pill" style="border-color:${c.color}">${c.id}: ${user.balances[c.id].toLocaleString()}</div>`; }); }
-    window.goToWalletFromGame=()=>{ document.getElementById('gameOverUI').style.display='none'; document.getElementById('startContainer').style.display='block'; switchTab('wallet'); }
-    window.switchLbTab=(t)=>{ document.getElementById('tabDaily').style.background=t==='daily'?'var(--neon-cyan)':'transparent'; document.getElementById('tabRef').style.background=t==='ref'?'var(--neon-cyan)':'transparent'; renderLB(t); }
-    window.initLB=()=>{ if(!user.lbData.daily.length){ for(let i=0;i<20;i++){ user.lbData.daily.push({name:'Miner_'+Math.floor(Math.random()*999),score:Math.floor(Math.random()*5000000)}); user.lbData.ref.push({name:'Ref_'+Math.floor(Math.random()*99),score:Math.floor(Math.random()*50)}); } } renderLB('daily'); }
-    function renderLB(t){ const l=document.getElementById('rankContainer'); l.innerHTML=''; let d=[...user.lbData[t]]; d.push({name:'YOU',score:t==='daily'?user.balances.USDT:user.referrals.length,me:true}); d.sort((a,b)=>b.score-a.score); d.forEach((x,i)=>{ l.innerHTML+=`<div class="rank-item" style="${x.me?'border:1px solid var(--neon-cyan)':''}"><div style="width:30px;">${i+1}</div><div style="flex:1;">${x.name}</div><div>${x.score.toLocaleString()}</div></div>`; }); }
-    function withdraw(id){ if(user.balances[id]>=1000000){ user.balances[id]-=1000000; saveData(); renderWallet(); alert(t('sentMsg')); } }
-    function watchAd(){ alert('2X!'); for(let k in sessionEarn) user.balances[k]+=sessionEarn[k]; saveData(); goToWalletFromGame(); }
-</script>
+            balls = balls.filter(b => !b.dead);
+            pegs.forEach(p => { if (p.pulse > 0) p.pulse--; });
+            slots.forEach(s => { if (s.active > 0) s.active--; });
+            for(let i=popups.length-1; i>=0; i--) { popups[i].y -= 1; popups[i].life -= 0.02; if(popups[i].life <= 0) popups.splice(i, 1); }
+            for(let i=particles.length-1; i>=0; i--) { particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life -= 0.05; if(particles[i].life <= 0) particles.splice(i, 1); }
+        }
+
+        function finishBall(b, s) {
+            b.dead = true;
+            const earned = b.coin.baseVal * s.val;
+            if(sessionGains[b.coin.id] === undefined) sessionGains[b.coin.id] = 0;
+            sessionGains[b.coin.id] += earned;
+            s.active = 10;
+            popups.push({ txt: `+${earned.toFixed(b.coin.decimals)}`, x: b.x, y: b.y - 20, color: b.coin.color, life: 1.0 });
+            for(let i=0; i<5; i++) particles.push({ x: b.x, y: b.y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6, color: b.coin.color, life: 1.0 });
+        }
+
+        function showSummary() {
+            let html = '';
+            COINS.forEach(c => {
+                const gain = sessionGains[c.id] || 0;
+                if(gain > 0) {
+                    html += `<div class="summary-row"><span style="display:flex; align-items:center"><img src="${c.src}" width="14" style="margin-right:5px">${c.id.toUpperCase()}</span><span class="sum-val">+${gain.toFixed(c.decimals)}</span></div>`;
+                }
+            });
+            roundSummaryEl.innerHTML = html || '<div style="color:#666; text-align:center;">No Earnings</div>';
+            modal.style.display = 'flex';
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0b0e14'; ctx.fillRect(0, 0, width, height);
+            for (let s of slots) {
+                ctx.fillStyle = s.active > 0 ? '#fff' : s.color; ctx.globalAlpha = 0.2; ctx.fillRect(s.x, s.y, s.w, s.h);
+                ctx.globalAlpha = 1; ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y, s.w, 4);
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Roboto'; ctx.textAlign = 'center'; ctx.fillText(s.val + 'x', s.x + s.w/2, s.y + 20);
+            }
+            for (let p of pegs) { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = p.pulse > 0 ? '#fff' : '#334155'; ctx.fill(); }
+            for (let b of balls) {
+                ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+                ctx.drawImage(b.coin.img, b.x - b.r, b.y - b.r, b.r*2, b.r*2); ctx.restore();
+            }
+            for(let p of particles) { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4); ctx.globalAlpha = 1; }
+            for(let p of popups) { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.font = 'bold 12px monospace'; ctx.textAlign='center'; ctx.fillText(p.txt, p.x, p.y); ctx.globalAlpha = 1; }
+        }
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        preload();
+    </script>
 </body>
 </html>
