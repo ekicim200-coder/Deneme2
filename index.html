@@ -136,11 +136,11 @@
 
     <div id="value-table">
         <h3>BALL VALUES</h3>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-btc" class="coin-mini-icon">BTC</div> <span class="coin-fixed-val">0.00000001</span></div>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-eth" class="coin-mini-icon">ETH</div> <span class="coin-fixed-val">0.0000006</span></div>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-trx" class="coin-mini-icon">TRX</div> <span class="coin-fixed-val">0.001</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-btc" class="coin-mini-icon">BTC</div> <span class="coin-fixed-val">0.00000005</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-eth" class="coin-mini-icon">ETH</div> <span class="coin-fixed-val">0.0000003</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-trx" class="coin-mini-icon">TRX</div> <span class="coin-fixed-val">0.007</span></div>
         <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-usdt" class="coin-mini-icon">USDT</div> <span class="coin-fixed-val">0.002</span></div>
-        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-str" class="coin-mini-icon">STR</div> <span class="coin-fixed-val">5.000</span></div>
+        <div class="val-row"><div style="display:flex; align-items:center;"><img src="" id="icon-str" class="coin-mini-icon">STR</div> <span class="coin-fixed-val">2.000</span></div>
     </div>
 
     <div id="session-score-panel">
@@ -239,15 +239,15 @@
         const ctx = canvas.getContext('2d');
         
         const COINS = [
-            { id: 'btc',  baseVal: 0.00000001, currentBalance: 0, minWithdraw: 0.0001, src: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025', color: '#f7931a', decimals: 8 },
-            { id: 'eth',  baseVal: 0.0000006,  currentBalance: 0, minWithdraw: 0.001,   src: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025', color: '#627eea', decimals: 7 },
-            { id: 'trx',  baseVal: 0.001,      currentBalance: 0, minWithdraw: 50,      src: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025', color: '#ef0027', decimals: 3 },
-            { id: 'usdt', baseVal: 0.002,      currentBalance: 0, minWithdraw: 10,      src: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', color: '#26a17b', decimals: 3 },
-            { id: 'str',  baseVal: 5.0,        currentBalance: 0, minWithdraw: 20000,   src: 'https://cdn-icons-png.flaticon.com/512/616/616490.png', color: '#ffffff', decimals: 2 }
+            { id: 'btc',  baseVal: 0.00000005, currentBalance: 0, minWithdraw: 0.0001, src: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=025', color: '#f7931a', decimals: 8 },
+            { id: 'eth',  baseVal: 0.0000003,  currentBalance: 0, minWithdraw: 0.006,   src: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=025', color: '#627eea', decimals: 7 },
+            { id: 'trx',  baseVal: 0.007,      currentBalance: 0, minWithdraw: 70,      src: 'https://cryptologos.cc/logos/tron-trx-logo.png?v=025', color: '#ef0027', decimals: 3 },
+            { id: 'usdt', baseVal: 0.002,      currentBalance: 0, minWithdraw: 50,      src: 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=025', color: '#26a17b', decimals: 3 },
+            { id: 'str',  baseVal: 2.0,        currentBalance: 0, minWithdraw: 50000,   src: 'https://cdn-icons-png.flaticon.com/512/616/616490.png', color: '#ffffff', decimals: 2 }
         ];
 
-        const ROWS = 13; const GRAVITY = 0.55; const FRICTION = 0.98; const BOUNCE = 0.55;
-        const MULTIPLIERS = [10, 5, 2, 1, 0.5, 0.2, 0.2, 0.2, 0.5, 1, 2, 5, 10];
+        const ROWS = 9; const GRAVITY = 0.55; const FRICTION = 0.98; const BOUNCE = 0.55;
+        const MULTIPLIERS = [100, 25, 10, 5, 2, 2, 2, 10, 25, 100,];
 
         let width, height;
         let ballQueue = []; let pegs = []; let balls = []; let slots = []; let particles = []; let popups = [];
