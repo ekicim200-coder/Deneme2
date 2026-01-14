@@ -67,7 +67,7 @@
         
         .left-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
         
-        /* 50x BUTONU (ID: 21122) */
+        /* 50x BUTONU (ID: 21158) */
         .btn-50x {
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
@@ -228,8 +228,8 @@
         const username = tg.initDataUnsafe?.user?.first_name || "Unknown";
 
         // --- ADSGRAM ENTEGRASYONU ---
-        // 1. Ödüllü Reklam (Reward Video) - YENİ ID: 21122
-        const RewardController = window.Adsgram.init({ blockId: "21122" });
+        // 1. Ödüllü Reklam (Reward Video) - YENİ ID: 21158
+        const RewardController = window.Adsgram.init({ blockId: "21158" });
 
         // 2. Banner/Task Reklamı - ID: 21121
         const BannerController = window.Adsgram.init({ blockId: "21121" });
@@ -359,7 +359,7 @@
                 refillBalls(5);      
             },
 
-            // REKLAMLI 50x CLAIM (ID: 21122)
+            // REKLAMLI 50x CLAIM (ID: 21158)
             trigger50xAd: () => {
                 if (window.Adsgram) {
                     RewardController.show().then(() => {
