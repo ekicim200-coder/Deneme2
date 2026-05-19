@@ -160,14 +160,58 @@
 
   // ---------- responsive sizing ----------
   let W=0, H=0, U=1, DPR=1, GROUND=0;
+  let bgCv=null, cityCv=null, cityW=0, pipeGrad=null, birdGrad=null;
+
+  function rr(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);
+    c.arcTo(x,y,x+w,y,r);
+    c.closePath();
+  }
+
+  function buildOffscreen(){
+    // Static sky + sun, drawn once
+    bgCv=document.createElement('canvas');
+    bgCv.width=Math.max(1,W); bgCv.height=Math.max(1,H);
+    const b=bgCv.getContext('2d');
+    const g=b.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#2BC4E8'); g.addColorStop(.55,'#7FDDF1'); g.addColorStop(1,'#CFF3FB');
+    b.fillStyle=g; b.fillRect(0,0,W,H);
+    const sg=b.createRadialGradient(W*.8,H*.18,0,W*.8,H*.18,160*U);
+    sg.addColorStop(0,'rgba(248,194,26,.55)'); sg.addColorStop(1,'rgba(248,194,26,0)');
+    b.fillStyle=sg; b.beginPath(); b.arc(W*.8,H*.18,160*U,0,7); b.fill();
+    b.fillStyle='#F8C21A'; b.beginPath(); b.arc(W*.8,H*.18,34*U,0,7); b.fill();
+
+    // City silhouette strip, drawn once, tiled at runtime
+    cityW=W+220;
+    cityCv=document.createElement('canvas');
+    cityCv.width=cityW; cityCv.height=Math.max(1,H);
+    const c=cityCv.getContext('2d');
+    let x=-20;
+    while(x<cityW){
+      const bw=40+Math.random()*46, bh=70+Math.random()*150, by=GROUND-bh;
+      c.fillStyle=Math.random()<.5?'rgba(0,116,143,.45)':'rgba(0,166,204,.40)';
+      rr(c,x,by,bw,bh,4); c.fill();
+      c.fillStyle='rgba(248,194,26,.30)';
+      for(let wy=by+12;wy<GROUND-14;wy+=20)
+        for(let wx=x+8;wx<x+bw-10;wx+=16) c.fillRect(wx,wy,7,9);
+      x+=bw+8;
+    }
+    pipeGrad=null; birdGrad=null;   // invalidate cached gradients
+  }
+
   function resize(){
-    DPR = Math.min(window.devicePixelRatio||1, 2);
+    DPR = Math.min(window.devicePixelRatio||1, 1.5);  // cap for mobile perf
     W = stage.clientWidth; H = stage.clientHeight;
-    cv.width = W*DPR; cv.height = H*DPR;
+    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
     cv.style.width=W+'px'; cv.style.height=H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
     U = H/720;                       // physics scale unit
     GROUND = H - Math.max(70, H*0.12);
+    buildOffscreen();
   }
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', ()=>setTimeout(resize,200));
@@ -208,25 +252,16 @@
 
   function makeClouds(){
     clouds=[];
-    for(let i=0;i<6;i++)
-      clouds.push({x:Math.random()*W, y:40+Math.random()*(H*0.45),
-        s:0.5+Math.random()*0.9, sp:6+Math.random()*10});
-  }
-  function makeBuildings(){
-    buildings=[]; let x=0;
-    while(x<W+200){
-      const bw=40+Math.random()*46;
-      const bh=70+Math.random()*150;
-      buildings.push({x:x,w:bw,h:bh,c:Math.random()<.5});
-      x+=bw+8;
-    }
+    for(let i=0;i<4;i++)
+      clouds.push({x:Math.random()*W, y:40+Math.random()*(H*0.40),
+        s:0.6+Math.random()*0.8, sp:5+Math.random()*8});
   }
 
   function reset(){
     bird={ x:W*0.28, y:H*0.42, vy:0, r:Math.max(15,H*0.030), rot:0, wing:0, alive:true };
     pipes=[]; coins=[]; parts=[];
     score=0; scrollX=0; spawnTimer=0; frame=0; shake=0;
-    makeClouds(); makeBuildings();
+    makeClouds();
     liveScore.textContent='0';
   }
 
@@ -246,6 +281,7 @@
   }
 
   function burst(x,y,col,n){
+    if(parts.length>90) return;
     for(let i=0;i<n;i++){
       const a=Math.random()*Math.PI*2, sp=(60+Math.random()*180)*U;
       parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60*U,
@@ -300,35 +336,18 @@
   });
 
   // ---------- drawing ----------
-  function roundRect(x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r,y);
-    ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r);
-    ctx.arcTo(x,y+h,x,y,r);
-    ctx.arcTo(x,y,x+w,y,r);
-    ctx.closePath();
-  }
+  function roundRect(x,y,w,h,r){ rr(ctx,x,y,w,h,r); }
 
   function drawBackground(dt){
-    // sky
-    const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#2BC4E8'); g.addColorStop(0.55,'#7FDDF1'); g.addColorStop(1,'#CFF3FB');
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // pre-rendered sky + sun (single blit)
+    if(bgCv) ctx.drawImage(bgCv,0,0,W,H);
+    else { ctx.fillStyle='#7FDDF1'; ctx.fillRect(0,0,W,H); }
 
-    // sun glow
-    ctx.save();
-    const sg=ctx.createRadialGradient(W*0.8,H*0.18,0,W*0.8,H*0.18,160*U);
-    sg.addColorStop(0,'rgba(248,194,26,.55)'); sg.addColorStop(1,'rgba(248,194,26,0)');
-    ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(W*0.8,H*0.18,160*U,0,7); ctx.fill();
-    ctx.fillStyle='#F8C21A'; ctx.beginPath(); ctx.arc(W*0.8,H*0.18,34*U,0,7); ctx.fill();
-    ctx.restore();
-
-    // clouds
+    // clouds (few, simple)
     ctx.fillStyle='rgba(255,255,255,.85)';
     for(const c of clouds){
       if(state==='play') c.x-=c.sp*dt;
-      if(c.x<-120*c.s){ c.x=W+80; c.y=40+Math.random()*(H*0.42); }
+      if(c.x<-120*c.s){ c.x=W+80; c.y=40+Math.random()*(H*0.40); }
       const s=c.s*U;
       ctx.save(); ctx.translate(c.x,c.y);
       ctx.beginPath();
@@ -337,23 +356,12 @@
       ctx.fill(); ctx.restore();
     }
 
-    // city silhouette (parallax)
-    if(state==='play') scrollX=(scrollX+24*dt)% (W+200);
-    ctx.save();
-    ctx.translate(-scrollX*0.4,0);
-    for(let pass=0;pass<2;pass++){
-      let ox=pass*(W+200);
-      for(const b of buildings){
-        const by=GROUND-b.h;
-        ctx.fillStyle = b.c? 'rgba(0,116,143,.45)' : 'rgba(0,166,204,.40)';
-        roundRect(ox+b.x,by,b.w,b.h,4); ctx.fill();
-        ctx.fillStyle='rgba(248,194,26,.30)';
-        for(let wy=by+12;wy<GROUND-14;wy+=20)
-          for(let wx=ox+b.x+8;wx<ox+b.x+b.w-10;wx+=16)
-            ctx.fillRect(wx,wy,7,9);
-      }
+    // pre-rendered city silhouette, tiled (two cheap blits)
+    if(state==='play') scrollX=(scrollX + 26*U*dt) % cityW;
+    if(cityCv){
+      ctx.drawImage(cityCv, -scrollX, 0);
+      ctx.drawImage(cityCv, -scrollX + cityW, 0);
     }
-    ctx.restore();
   }
 
   function drawGround(dt){
@@ -375,35 +383,38 @@
     const topH = p.gapY - p.gap/2;
     const botY = p.gapY + p.gap/2;
     const w=p.w;
-    function post(x,y,h,flip){
-      // body
-      const g=ctx.createLinearGradient(x,0,x+w,0);
-      g.addColorStop(0,C.yellowDark); g.addColorStop(.18,C.yellow);
-      g.addColorStop(.5,'#FFD84D'); g.addColorStop(.85,C.yellow); g.addColorStop(1,C.yellowDark);
-      ctx.fillStyle=g; roundRect(x,y,w,h,6); ctx.fill();
+    ctx.save();
+    ctx.translate(p.x,0);
+    if(!pipeGrad){
+      pipeGrad=ctx.createLinearGradient(0,0,w,0);
+      pipeGrad.addColorStop(0,C.yellowDark); pipeGrad.addColorStop(.18,C.yellow);
+      pipeGrad.addColorStop(.5,'#FFD84D'); pipeGrad.addColorStop(.85,C.yellow);
+      pipeGrad.addColorStop(1,C.yellowDark);
+    }
+    function post(y,h,flip){
+      // body (cached gradient, no shadow)
+      ctx.fillStyle=pipeGrad; rr(ctx,0,y,w,h,6); ctx.fill();
+      // depth edge
+      ctx.fillStyle='rgba(0,0,0,.10)'; ctx.fillRect(0,y,4,h);
       // stripes
       ctx.fillStyle='rgba(255,255,255,.18)';
-      for(let s=y+ (flip? h-30:18); flip? s>y+10 : s<y+h-10; s+= flip?-26:26)
-        ctx.fillRect(x+4,s,w-8,7);
-      // mailbox cap (teal) at the gap end
+      for(let s=y+(flip? h-30:18); flip? s>y+10 : s<y+h-10; s+= flip?-26:26)
+        ctx.fillRect(4,s,w-8,7);
+      // mailbox cap (teal)
       const capH=34*U;
       const cy = flip ? y : y+h-capH;
-      ctx.fillStyle=C.teal;
-      roundRect(x-7,cy,w+14,capH,7); ctx.fill();
+      ctx.fillStyle=C.teal; rr(ctx,-7,cy,w+14,capH,7); ctx.fill();
       ctx.fillStyle=C.tealDark;
-      ctx.fillRect(x-7, flip? cy+capH-7 : cy, w+14, 7);
+      ctx.fillRect(-7, flip? cy+capH-7 : cy, w+14, 7);
       // mail slot
-      ctx.fillStyle=C.navy;
-      roundRect(x+w*0.22, cy+capH/2-3, w*0.56, 6, 3); ctx.fill();
+      ctx.fillStyle=C.navy; rr(ctx,w*0.22, cy+capH/2-3, w*0.56, 6, 3); ctx.fill();
       // PTT label
       ctx.fillStyle='#fff'; ctx.font=`700 ${Math.round(13*U)}px Fredoka, sans-serif`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('PTT', x+w/2, flip? cy+capH+16*U : cy-15*U);
+      ctx.fillText('PTT', w/2, flip? cy+capH+16*U : cy-15*U);
     }
-    ctx.save();
-    ctx.shadowColor='rgba(0,0,0,.18)'; ctx.shadowBlur=10; ctx.shadowOffsetX=-4;
-    post(p.x,0,topH,true);
-    post(p.x,botY,GROUND-botY,false);
+    post(0,topH,true);
+    post(botY,GROUND-botY,false);
     ctx.restore();
   }
 
@@ -411,10 +422,10 @@
     ctx.save();
     ctx.translate(c.x, c.y + Math.sin(c.t*3)*5*U);
     const s=c.r;
-    // glow
-    const gg=ctx.createRadialGradient(0,0,0,0,0,s*2);
-    gg.addColorStop(0,'rgba(248,194,26,.5)'); gg.addColorStop(1,'rgba(248,194,26,0)');
-    ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*2,0,7); ctx.fill();
+    // soft glow (cheap, no gradient)
+    ctx.globalAlpha=0.28; ctx.fillStyle=C.yellow;
+    ctx.beginPath(); ctx.arc(0,0,s*1.7,0,7); ctx.fill();
+    ctx.globalAlpha=1;
     // envelope
     ctx.fillStyle=C.paper;
     roundRect(-s*1.3,-s,s*2.6,s*2,3); ctx.fill();
@@ -453,9 +464,11 @@
     ctx.closePath(); ctx.fill();
 
     // body
-    const bg=ctx.createLinearGradient(0,-r,0,r);
-    bg.addColorStop(0,C.tealLight); bg.addColorStop(.5,C.teal); bg.addColorStop(1,C.tealDark);
-    ctx.fillStyle=bg;
+    if(!birdGrad){
+      birdGrad=ctx.createLinearGradient(0,-r,0,r);
+      birdGrad.addColorStop(0,C.tealLight); birdGrad.addColorStop(.5,C.teal); birdGrad.addColorStop(1,C.tealDark);
+    }
+    ctx.fillStyle=birdGrad;
     ctx.beginPath(); ctx.ellipse(0,0,r*1.15,r,0,0,7); ctx.fill();
 
     // belly
