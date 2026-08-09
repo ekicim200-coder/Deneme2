@@ -48,18 +48,18 @@ const GameData = {
     },
     okcu: {
       id: 'okcu', name: 'Okçu', role: 'Menzilli Fiziksel',
-      desc: 'Yüksek saldırı hızı ve kritik. Mesafeyi koruyabilirse kazanır.',
-      base: { maxHp: 430, attack: 52, magic: 14, defense: 22, attackSpeed: 1.35,
+      desc: 'Yüksek saldırı hızı ve kritik. Savunması en düşük sınıf — vurulmadan oynamalısın.',
+      base: { maxHp: 430, attack: 52, magic: 14, defense: 15, attackSpeed: 1.35,
               moveSpeed: 4.6, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 7.5 },
-      growth: { maxHp: 32, attack: 5.4, magic: 1.2, defense: 1.9 },
+      growth: { maxHp: 32, attack: 5.4, magic: 1.2, defense: 1.35 },
       damageStat: 'attack',
       skills: ['cokluOk', 'deliciOk', 'kritikOk', 'okYagmuru']
     },
     buyucu: {
       id: 'buyucu', name: 'Büyücü', role: 'Alan Hasarı / Kontrol',
-      desc: 'Element ve alan hasarı. Kalabalığı siler, tekli dövüşte kırılgandır.',
+      desc: 'Element ve alan hasarı. Kalabalığı siler ama ağır adımlarla yürür.',
       base: { maxHp: 460, attack: 22, magic: 58, defense: 24, attackSpeed: 1.05,
-              moveSpeed: 4.3, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
+              moveSpeed: 3.75, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
       growth: { maxHp: 34, attack: 1.4, magic: 5.8, defense: 2.1 },
       damageStat: 'magic',
       skills: ['elementTopu', 'alanBuyusu', 'kontrolBuyusu', 'ultimate']
@@ -219,6 +219,20 @@ const GameData = {
 
     /* --- İksirler (markette satılır, basılı tutunca da içilir) --- */
     autoPotionAt: 0.45        // otomatik iksir eşiği (max HP oranı)
+  },
+
+  /* ---------------- YETENEK SEVİYELERİ ----------------
+     Her yetenek 1-10 arası yükseltilir: hasar artar, bekleme kısalır. */
+  SKILL_LEVEL: {
+    max: 10,
+    pointsPerLevel: 1,        // karakter levelinde kazanılan yetenek puanı
+    firstPointAt: 2,          // Lv2'den itibaren
+    damagePerLevel: 0.14,     // seviye başına +%14 hasar
+    cdPerLevel: 0.045,        // seviye başına -%4.5 bekleme
+    cdFloor: 0.60,            // bekleme en fazla %40 kısalır
+    manaPerLevel: 0.03,       // seviye başına +%3 mana maliyeti
+    effectPerLevel: 0.06,     // yavaşlatma/yanma/sersemletme etkisi +%6
+    unlockAt: [1, 4, 8, 14]   // yetenekler bu karakter levellerinde açılır
   },
 
   /* ---------------- İKSİRLER ---------------- */
