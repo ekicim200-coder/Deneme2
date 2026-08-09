@@ -822,6 +822,20 @@ body.is-touch #game{ cursor:default; }
   .tier-tab{ flex:1 1 30%; }
 }
 
+/* ===== YETENEK SEVİYESİ ===== */
+.skill .sklv{
+  position:absolute; bottom:3px; right:5px; font-size:9px; font-weight:800;
+  color:#ffd15c; letter-spacing:.03em; opacity:.9;
+}
+.skill.locked{ opacity:.4; filter:grayscale(.6); }
+.skcard.locked{ opacity:.55; }
+.lvtag{ color:#ffd15c; }
+.sklvbar{ display:flex; gap:2px; margin:2px 0 8px; }
+.sklvbar i{ flex:1; height:4px; border-radius:2px; background:#232c42; }
+.sklvbar i.on{ background:var(--c); box-shadow:0 0 6px -1px var(--c); }
+.skrow .nx{ font-style:normal; color:#8fd45c; font-weight:700; font-size:10.5px; }
+.skcard .btn{ width:100%; margin-top:9px; }
+
 </style>
 </head>
 <body>
@@ -1066,18 +1080,18 @@ const GameData = {
     },
     okcu: {
       id: 'okcu', name: 'Okçu', role: 'Menzilli Fiziksel',
-      desc: 'Yüksek saldırı hızı ve kritik. Mesafeyi koruyabilirse kazanır.',
-      base: { maxHp: 430, attack: 52, magic: 14, defense: 22, attackSpeed: 1.35,
+      desc: 'Yüksek saldırı hızı ve kritik. Savunması en düşük sınıf — vurulmadan oynamalısın.',
+      base: { maxHp: 430, attack: 52, magic: 14, defense: 15, attackSpeed: 1.35,
               moveSpeed: 4.6, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 7.5 },
-      growth: { maxHp: 32, attack: 5.4, magic: 1.2, defense: 1.9 },
+      growth: { maxHp: 32, attack: 5.4, magic: 1.2, defense: 1.35 },
       damageStat: 'attack',
       skills: ['cokluOk', 'deliciOk', 'kritikOk', 'okYagmuru']
     },
     buyucu: {
       id: 'buyucu', name: 'Büyücü', role: 'Alan Hasarı / Kontrol',
-      desc: 'Element ve alan hasarı. Kalabalığı siler, tekli dövüşte kırılgandır.',
+      desc: 'Element ve alan hasarı. Kalabalığı siler ama ağır adımlarla yürür.',
       base: { maxHp: 460, attack: 22, magic: 58, defense: 24, attackSpeed: 1.05,
-              moveSpeed: 4.3, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
+              moveSpeed: 3.75, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
       growth: { maxHp: 34, attack: 1.4, magic: 5.8, defense: 2.1 },
       damageStat: 'magic',
       skills: ['elementTopu', 'alanBuyusu', 'kontrolBuyusu', 'ultimate']
@@ -1237,6 +1251,20 @@ const GameData = {
 
     /* --- İksirler (markette satılır, basılı tutunca da içilir) --- */
     autoPotionAt: 0.45        // otomatik iksir eşiği (max HP oranı)
+  },
+
+  /* ---------------- YETENEK SEVİYELERİ ----------------
+     Her yetenek 1-10 arası yükseltilir: hasar artar, bekleme kısalır. */
+  SKILL_LEVEL: {
+    max: 10,
+    pointsPerLevel: 1,        // karakter levelinde kazanılan yetenek puanı
+    firstPointAt: 2,          // Lv2'den itibaren
+    damagePerLevel: 0.14,     // seviye başına +%14 hasar
+    cdPerLevel: 0.045,        // seviye başına -%4.5 bekleme
+    cdFloor: 0.60,            // bekleme en fazla %40 kısalır
+    manaPerLevel: 0.03,       // seviye başına +%3 mana maliyeti
+    effectPerLevel: 0.06,     // yavaşlatma/yanma/sersemletme etkisi +%6
+    unlockAt: [1, 4, 8, 14]   // yetenekler bu karakter levellerinde açılır
   },
 
   /* ---------------- İKSİRLER ---------------- */
@@ -1958,11 +1986,53 @@ const Skills = {
     return out;
   },
 
+  /* ---- YETENEK SEVİYESİ ----
+     Seviye arttıkça hasar artar, bekleme kısalır, yan etkiler güçlenir. */
+  levelOf(actor, idx) {
+    const max = GameData.SKILL_LEVEL.max;
+    if (actor && actor.skillLv) return U.clamp(actor.skillLv[idx] || 1, 1, max);
+    // botlar/yaratıklar: karakter leveline göre otomatik
+    return U.clamp(1 + Math.floor((actor && actor.level || 1) / 9), 1, max);
+  },
+
+  /* Seviyeye göre ölçeklenmiş yetenek kopyası döner (orijinali bozmaz) */
+  scaled(skillId, lv) {
+    const sk = GameData.SKILLS[skillId];
+    const L = GameData.SKILL_LEVEL;
+    const n = U.clamp(lv || 1, 1, L.max) - 1;
+    const out = Object.assign({}, sk);
+    out.lv = n + 1;
+    out.dmgBonus = L.damagePerLevel * n;
+    if (sk.mult) out.mult = sk.mult * (1 + L.damagePerLevel * n);
+    out.cd = Math.round(sk.cd * Math.max(L.cdFloor, 1 - L.cdPerLevel * n) * 10) / 10;
+    out.mana = Math.round(sk.mana * (1 + L.manaPerLevel * n));
+    const em = 1 + L.effectPerLevel * n;
+    if (sk.effect) {
+      out.effect = {};
+      for (const r in sk.effect) {
+        const c = Object.assign({}, sk.effect[r]);
+        for (const k of ['slow', 'burn', 'stun', 'dur', 'dur2']) if (c[k]) c[k] = Math.round(c[k] * em * 1000) / 1000;
+        out.effect[r] = c;
+      }
+    }
+    if (sk.heal) { out.heal = {}; for (const r in sk.heal) out.heal[r] = sk.heal[r] * em; }
+    if (sk.buff) {
+      out.buff = {};
+      for (const r in sk.buff) {
+        const b = Object.assign({}, sk.buff[r]);
+        for (const k in b) b[k] = Math.round(b[k] * em * 1000) / 1000;
+        out.buff[r] = b;
+      }
+    }
+    return out;
+  },
+
   /* Yeteneğin ne işe yaradığını insan diliyle + sayılarla anlatır.
      stats verilirse tahmini hasar da hesaplanır. */
-  info(skillId, race, cls, stats) {
-    const sk = GameData.SKILLS[skillId];
-    if (!sk) return null;
+  info(skillId, race, cls, stats, lv = 1) {
+    const base = GameData.SKILLS[skillId];
+    if (!base) return null;
+    const sk = this.scaled(skillId, lv);
     const magic = cls === 'buyucu';
     const power = stats ? (magic ? stats.magic : stats.attack) : 0;
 
@@ -2011,6 +2081,7 @@ const Skills = {
 
     return {
       id: skillId,
+      lv: sk.lv,
       name: sk.name[race],
       typeName: TYPE.name,
       how: TYPE.how,
@@ -2025,7 +2096,7 @@ const Skills = {
     const race = actor.race;
     const cls = actor.cls;
     const skillId = GameData.CLASSES[cls].skills[idx];
-    const sk = GameData.SKILLS[skillId];
+    const sk = this.scaled(skillId, this.levelOf(actor, idx));
     const s = actor.eff();
     const magic = cls === 'buyucu';
     const colors = GameData.RACES[race].colors;
@@ -2107,7 +2178,10 @@ const Skills = {
   tryCast(player, idx, game, aim) {
     if (player.dead || player.stunned || player.busy > 0.15) return false;
     const skillId = GameData.CLASSES[player.cls].skills[idx];
-    const sk = GameData.SKILLS[skillId];
+    const sk = this.scaled(skillId, this.levelOf(player, idx));
+    // kilitli yetenek
+    const need = GameData.SKILL_LEVEL.unlockAt[idx] || 1;
+    if ((player.level || 1) < need) { UI.toast(`Bu yetenek Level ${need}'te açılır`, 'warn'); return false; }
     if (player.skillCd[idx] > 0) return false;
     if (player.mana < sk.mana) { UI.toast('Enerji yetersiz', 'warn'); return false; }
     player.mana -= sk.mana;
@@ -2286,6 +2360,7 @@ class PlayerActor extends Actor {
     this.combo = 0;          // 0,1,2 → üçüncü vuruş bitirici
     this.comboTimer = 0;
     this.potionCds = { kucuk: 0, buyuk: 0, mana: 0 };
+    this.skillLv = save.skillLv || [1, 1, 1, 1];
     this.hp = this.maxHp;
   }
 
@@ -2296,6 +2371,7 @@ class PlayerActor extends Actor {
     this.hp = Math.min(this.maxHp, this.maxHp * ratio);
     this.level = this.save.level;
     this.element = this.save.race;
+    this.skillLv = this.save.skillLv;         // yetenek seviyeleri
   }
 
   update(dt, game) {
@@ -3638,7 +3714,7 @@ const UI = {
       const el = document.getElementById('skill-' + i);
       if (!el) continue;
       const skId = GameData.CLASSES[p.cls].skills[i];
-      const sk = GameData.SKILLS[skId];
+      const sk = Skills.scaled(skId, Skills.levelOf(p, i));   // seviyeye göre kısalmış bekleme
       const r = U.clamp(p.skillCd[i] / sk.cd, 0, 1);
       el.querySelector('.cd').style.height = (r * 100) + '%';
       el.querySelector('.cd-text').textContent = p.skillCd[i] > 0 ? Math.ceil(p.skillCd[i]) : '';
@@ -3648,6 +3724,18 @@ const UI = {
     if (dash) dash.querySelector('.cd').style.height =
       U.clamp(p.dashCd / GameData.BALANCE.dashCd, 0, 1) * 100 + '%';
     const s = this.game.save;
+
+    // yetenek rozetleri: seviye ve kilit durumu canlı güncellenir
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById('skill-' + i);
+      if (!el) continue;
+      const lv = (s.skillLv && s.skillLv[i]) || 1;
+      const locked = s.level < (GameData.SKILL_LEVEL.unlockAt[i] || 1);
+      const badge = el.querySelector('.sklv');
+      if (badge) badge.textContent = locked ? '🔒' : 'Sv' + lv;
+      el.classList.toggle('locked', locked);
+    }
+
     for (const pot of Object.values(GameData.POTIONS)) {
       const el = document.getElementById('btn-pot-' + pot.id);
       if (!el) continue;
@@ -3671,11 +3759,17 @@ const UI = {
     let html = '';
     skills.forEach((id, i) => {
       const sk = GameData.SKILLS[id];
-      const info = Skills.info(id, s.race, s.cls, null);
-      const tip = `${info.name} — ${info.typeName}\n${info.how}\n` +
-        info.rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
-        (info.effects.length ? '\n' + info.effects.join('\n') : '');
-      html += `<button class="skill" id="skill-${i}" data-skill="${i}" title="${tip.replace(/"/g, '&quot;')}">
+      const lv = (s.skillLv && s.skillLv[i]) || 1;
+      const need = GameData.SKILL_LEVEL.unlockAt[i] || 1;
+      const locked = s.level < need;
+      const info = Skills.info(id, s.race, s.cls, null, lv);
+      const tip = locked
+        ? `${info.name} — Level ${need}'te açılır`
+        : `${info.name} — ${info.typeName} · Sv ${lv}\n${info.how}\n` +
+          info.rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
+          (info.effects.length ? '\n' + info.effects.join('\n') : '');
+      html += `<button class="skill${locked ? ' locked' : ''}" id="skill-${i}" data-skill="${i}" title="${tip.replace(/"/g, '&quot;')}">
+        <span class="sklv">${locked ? '🔒' : 'Sv' + lv}</span>
         <span class="key">${i + 1}</span>
         <span class="sname">${sk.name[s.race]}</span>
         <span class="mana">${sk.mana}</span>
@@ -3904,31 +3998,58 @@ const UI = {
     const ids = GameData.CLASSES[s.cls].skills;
     const race = GameData.RACES[s.race];
 
+    const SL = GameData.SKILL_LEVEL;
     const cards = ids.map((id, i) => {
-      const info = Skills.info(id, s.race, s.cls, st);
-      const rows = info.rows.map(([k, v]) => `<div class="skrow"><span>${k}</span><b>${v}</b></div>`).join('');
+      const lv = s.skillLv[i] || 1;
+      const need = SL.unlockAt[i] || 1;
+      const locked = s.level < need;
+      const maxed = lv >= SL.max;
+      const info = Skills.info(id, s.race, s.cls, st, lv);
+      const next = maxed ? null : Skills.info(id, s.race, s.cls, st, lv + 1);
+
+      const rows = info.rows.map(([k, v], ri) => {
+        const nv = next ? next.rows[ri] && next.rows[ri][1] : null;
+        const changed = nv && nv !== v;
+        return `<div class="skrow"><span>${k}</span><b>${v}${changed ? ` <i class="nx">→ ${nv}</i>` : ''}</b></div>`;
+      }).join('');
+
       const eff = info.effects.length
         ? `<ul class="skeff">${info.effects.map(e => `<li>${e}</li>`).join('')}</ul>`
         : '<p class="dim small">Ek etkisi yok.</p>';
-      return `<div class="skcard" style="--c:${race.colors.primary}">
+
+      const bar = `<div class="sklvbar">${Array.from({ length: SL.max },
+        (_, k) => `<i class="${k < lv ? 'on' : ''}"></i>`).join('')}</div>`;
+
+      const btn = locked
+        ? `<button class="btn small" disabled>Level ${need}'te açılır</button>`
+        : maxed
+          ? `<button class="btn small" disabled>En üst seviye (${SL.max})</button>`
+          : `<button class="btn small primary" data-skup="${i}" ${s.skillPoints <= 0 ? 'disabled' : ''}>
+               Yükselt → Sv ${lv + 1} (1 puan)</button>`;
+
+      return `<div class="skcard${locked ? ' locked' : ''}" style="--c:${race.colors.primary}">
         <div class="skhead">
           <span class="skkey">${i + 1}</span>
           <div>
             <b>${info.name}</b>
-            <span class="dim small">${info.typeName}</span>
+            <span class="dim small">${info.typeName} · <b class="lvtag">Seviye ${lv}/${SL.max}</b></span>
           </div>
         </div>
+        ${bar}
         <p class="skhow">${info.how}</p>
         <p class="dim small">${info.desc}</p>
         <div class="skrows">${rows}</div>
         <h5>Etkiler</h5>
         ${eff}
+        ${btn}
       </div>`;
     }).join('');
 
     const combo = GameData.BALANCE.combo;
-    this.shell('Yetenekler', `
+    this.shell(`Yetenekler <span class="pill">${s.skillPoints} yetenek puanı</span>`, `
       <div class="skills-wrap">
+        <p class="dim small">Her level 1 yetenek puanı verir. Yükselttikçe <b>hasar +%${Math.round(SL.damagePerLevel * 100)}</b>,
+           <b>bekleme −%${(SL.cdPerLevel * 100).toFixed(1)}</b> (en fazla −%${Math.round((1 - SL.cdFloor) * 100)}) ve yan etkiler +%${Math.round(SL.effectPerLevel * 100)} güçlenir.</p>
         <div class="skinfo" style="--c:${race.colors.primary}">
           <b>Temel saldırı — kombo</b>
           <p>Sol tıkı basılı tut: vuruşlar zincirlenir.
@@ -3943,6 +4064,13 @@ const UI = {
           <p>${race.passive.text}</p>
         </div>
       </div>`, 'wide');
+    this.bindSkillPanel();
+  },
+
+  bindSkillPanel() {
+    this.el.modal.querySelectorAll('[data-skup]').forEach(b => {
+      b.addEventListener('click', () => this.game.upgradeSkill(+b.dataset.skup));
+    });
   },
 
   /* ---------------- Envanter ---------------- */
@@ -4627,6 +4755,7 @@ class Game {
       alloc: {}, equipment: {}, inventory: [], storage: [], mats: {},
       potions: { kucuk: 10, buyuk: 2, mana: 2 }, autoPotion: true,
       quests: [], age: 1, bossKills: 0, kills: 0, stonesBroken: 0,
+      skillLv: [1, 1, 1, 1], skillPoints: 0,
       pvp: { mmr: 0, wins: 0, losses: 0 },
       code: name.toUpperCase().slice(0, 5).replace(/\s/g, '') + '-' + U.randInt(1000, 9999),
       created: Date.now()
@@ -4650,6 +4779,14 @@ class Game {
       for (const k of ['kucuk', 'buyuk', 'mana']) if (s.potions[k] == null) s.potions[k] = 0;
       if (s.autoPotion === undefined) s.autoPotion = true;
       if (s.stonesBroken === undefined) s.stonesBroken = 0;
+      if (!Array.isArray(s.skillLv) || s.skillLv.length !== 4) s.skillLv = [1, 1, 1, 1];
+      if (s.skillPoints === undefined) {
+        // eski kayıt: levelden hak edilen puanları geri ver
+        const L = GameData.SKILL_LEVEL;
+        const earned = Math.max(0, s.level - L.firstPointAt + 1) * L.pointsPerLevel;
+        const spent = s.skillLv.reduce((a, b) => a + (b - 1), 0);
+        s.skillPoints = Math.max(0, earned - spent);
+      }
       if (!s.age) s.age = 1;
       if (!s.bossKills) s.bossKills = 0;
       if (!s.code) s.code = (s.name || 'OYUN').toUpperCase().slice(0, 5) + '-' + U.randInt(1000, 9999);
@@ -5039,12 +5176,46 @@ class Game {
       s.xp -= need;
       s.level++;
       s.statPoints += GameData.BALANCE.statPointsPerLevel;
+
+      const SL = GameData.SKILL_LEVEL;
+      let gainedSkill = 0;
+      if (s.level >= SL.firstPointAt) { s.skillPoints += SL.pointsPerLevel; gainedSkill = SL.pointsPerLevel; }
+
       need = StatSystem.xpNeed(s.level);
       this.player.refreshStats();
       this.player.hp = this.player.maxHp;
       this.fx.levelUp(this.player.x, this.player.y);
-      UI.toast(`Level ${s.level}! +${GameData.BALANCE.statPointsPerLevel} stat puanı`, 'good');
+      UI.toast(`Level ${s.level}! +${GameData.BALANCE.statPointsPerLevel} stat` +
+        (gainedSkill ? ` · +${gainedSkill} yetenek puanı` : ''), 'good');
+
+      // yeni açılan yetenek var mı?
+      const idx = SL.unlockAt.indexOf(s.level);
+      if (idx >= 0) {
+        const id = GameData.CLASSES[s.cls].skills[idx];
+        UI.toast(`Yeni yetenek açıldı: ${GameData.SKILLS[id].name[s.race]} (${idx + 1} tuşu)`, 'good');
+      }
     }
+    UI.refreshHud();
+  }
+
+  /* Yetenek yükseltme — hasar artar, bekleme kısalır */
+  upgradeSkill(idx) {
+    const s = this.save, SL = GameData.SKILL_LEVEL;
+    if (idx < 0 || idx > 3) return false;
+    if (s.level < (SL.unlockAt[idx] || 1)) {
+      UI.toast(`Bu yetenek Level ${SL.unlockAt[idx]}'te açılır`, 'warn'); return false;
+    }
+    if (s.skillLv[idx] >= SL.max) { UI.toast('Bu yetenek zaten en üst seviyede', 'warn'); return false; }
+    if (s.skillPoints <= 0) { UI.toast('Yetenek puanın yok — level atla', 'warn'); return false; }
+    s.skillPoints--;
+    s.skillLv[idx]++;
+    this.player.refreshStats();
+    const id = GameData.CLASSES[s.cls].skills[idx];
+    UI.toast(`${GameData.SKILLS[id].name[s.race]} → Seviye ${s.skillLv[idx]}`, 'good');
+    this.saveGame();
+    UI.refreshHud();
+    if (UI.panel === 'skills') UI.render();
+    return true;
   }
 
   /* ---------------- Oyuncu aksiyonları ---------------- */
