@@ -57,10 +57,10 @@ const GameData = {
     },
     buyucu: {
       id: 'buyucu', name: 'Büyücü', role: 'Alan Hasarı / Kontrol',
-      desc: 'Element ve alan hasarı. Kalabalığı siler ama ağır adımlarla yürür.',
-      base: { maxHp: 460, attack: 22, magic: 58, defense: 24, attackSpeed: 1.05,
-              moveSpeed: 3.75, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
-      growth: { maxHp: 34, attack: 1.4, magic: 5.8, defense: 2.1 },
+      desc: 'Element ve alan hasarı. Kalabalığı siler ama en yavaş yürüyen ve kırılgan sınıftır.',
+      base: { maxHp: 460, attack: 22, magic: 48, defense: 24, attackSpeed: 1.05,
+              moveSpeed: 3.45, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
+      growth: { maxHp: 34, attack: 1.4, magic: 4.8, defense: 2.1 },
       damageStat: 'magic',
       skills: ['elementTopu', 'alanBuyusu', 'kontrolBuyusu', 'ultimate']
     }
@@ -84,9 +84,11 @@ const GameData = {
     },
     kalkanDarbesi: {
       name: { su: 'Buz Hamlesi', ates: 'Kor Hamlesi' }, type: 'dash',
-      mult: 1.35, cd: 9, mana: 20, radius: 1.8, dashDist: 4.5,
-      effect: { su: { stun: 1.1 }, ates: { stun: 0.7, burn: 0.3, dur: 3 } },
-      desc: 'İleri atılır, çarptığını sersemletir.'
+      mult: 1.35, cd: 11, mana: 24, radius: 2.1, dashDist: 4.5,
+      /* Savaşçının kontrol yeteneği: Sv1'de 2 sn sersemletme,
+         her seviyede +0.1 sn (Sv10 → 2.9 sn). */
+      effect: { su: { stun: 2.0 }, ates: { stun: 2.0, burn: 0.3, dur: 3 } },
+      desc: 'İleri atılır, çarptığı düşmanları 2 saniye sersemletir. Seviye arttıkça süre uzar.'
     },
     ofke: {
       name: { su: 'Buz Zırhı', ates: 'Öfke' }, type: 'buff',
@@ -121,26 +123,26 @@ const GameData = {
 
     elementTopu: {
       name: { su: 'Su Küresi', ates: 'Ateş Topu' }, type: 'projectile',
-      mult: 1.9, cd: 4, mana: 20, count: 1, speed: 12, life: 1.4, splash: 2.4,
+      mult: 1.6, cd: 4, mana: 20, count: 1, speed: 12, life: 1.4, splash: 2.4,
       effect: { su: { slow: 0.3, dur: 2 }, ates: { burn: 0.4, dur: 3 } },
       desc: 'İsabet yerinde patlayan element küresi.'
     },
     alanBuyusu: {
       name: { su: 'Buz Fırtınası', ates: 'Meteor' }, type: 'area',
-      mult: 1.25, cd: 12, mana: 34, radius: 3.4, hits: 4, tick: 0.5, castRange: 7.5,
+      mult: 1.18, cd: 11, mana: 34, radius: 3.8, hits: 4, tick: 0.5, castRange: 7.5,
       effect: { su: { slow: 0.45, dur: 2 }, ates: { burn: 0.45, dur: 4 } },
       desc: 'Hedef bölgeye uzun süreli alan hasarı.'
     },
     kontrolBuyusu: {
       name: { su: 'Donma', ates: 'Alev Duvarı' }, type: 'area',
-      mult: 0.7, cd: 14, mana: 30, radius: 3.0, hits: 2, tick: 0.5, castRange: 6,
+      mult: 0.6, cd: 14, mana: 30, radius: 3.4, hits: 2, tick: 0.5, castRange: 6,
       effect: { su: { stun: 1.6 }, ates: { burn: 0.6, dur: 5, slow: 0.3, dur2: 2 } },
       heal: { su: 0.18, ates: 0 },
       desc: 'Kontrol büyüsü. Su ırkı ayrıca kendini iyileştirir.'
     },
     ultimate: {
       name: { su: 'Kraken Dalgası', ates: 'Ejderha Nefesi' }, type: 'area',
-      mult: 3.4, cd: 30, mana: 60, radius: 4.6, hits: 1, self: true,
+      mult: 3.1, cd: 30, mana: 60, radius: 5.2, hits: 1, self: true,
       effect: { su: { slow: 0.5, dur: 3 }, ates: { burn: 0.8, dur: 5 } },
       desc: 'Çevrendeki her şeyi süpüren ultimate.'
     }
@@ -231,7 +233,9 @@ const GameData = {
     cdPerLevel: 0.045,        // seviye başına -%4.5 bekleme
     cdFloor: 0.60,            // bekleme en fazla %40 kısalır
     manaPerLevel: 0.03,       // seviye başına +%3 mana maliyeti
-    effectPerLevel: 0.06,     // yavaşlatma/yanma/sersemletme etkisi +%6
+    effectPerLevel: 0.06,     // yavaşlatma/yanma etkisi +%6
+    stunFlatPerLevel: 0.10,   // sersemletme: seviye başına +0.10 sn (düz artış)
+    stunCap: 3.2,             // sersemletme üst sınırı (sn)
     unlockAt: [1, 4, 8, 14]   // yetenekler bu karakter levellerinde açılır
   },
 
