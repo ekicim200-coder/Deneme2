@@ -811,3 +811,17 @@ body.is-touch #game{ cursor:default; }
   .char-grid, .storage{ grid-template-columns:1fr 1fr; }
   .tier-tab{ flex:1 1 30%; }
 }
+
+/* ===== YETENEK SEVİYESİ ===== */
+.skill .sklv{
+  position:absolute; bottom:3px; right:5px; font-size:9px; font-weight:800;
+  color:#ffd15c; letter-spacing:.03em; opacity:.9;
+}
+.skill.locked{ opacity:.4; filter:grayscale(.6); }
+.skcard.locked{ opacity:.55; }
+.lvtag{ color:#ffd15c; }
+.sklvbar{ display:flex; gap:2px; margin:2px 0 8px; }
+.sklvbar i{ flex:1; height:4px; border-radius:2px; background:#232c42; }
+.sklvbar i.on{ background:var(--c); box-shadow:0 0 6px -1px var(--c); }
+.skrow .nx{ font-style:normal; color:#8fd45c; font-weight:700; font-size:10.5px; }
+.skcard .btn{ width:100%; margin-top:9px; }
