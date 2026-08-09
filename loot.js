@@ -36,12 +36,22 @@ const Loot = {
 
     const stats = {};
     const main = GameData.SLOT_MAIN[slot];
-    stats[main.stat] = Math.round((main.base + main.per * ilvl) * rarity.mult * tMul * U.rand(0.9, 1.12));
 
-    // Silah büyücüye büyü gücü de verir
+    /* Silahın ana statı sınıfa göre ölçeklenir (güç mantığı):
+       savaşçının ağır silahı en yüksek, büyücünün asası en düşük ham saldırı verir —
+       büyücü hasarını asa yerine büyü gücü statından alır. */
+    let classMul = 1;
+    let mainStat = main.stat;
+    if (slot === 'weapon') {
+      const role = GameData.POWER_MODEL.roles[cls];
+      classMul = role ? role.weaponMul : 1;
+      if (cls === 'buyucu') mainStat = 'magic';       // asa büyü gücü verir
+    }
+    stats[mainStat] = Math.round((main.base + main.per * ilvl) * rarity.mult * tMul * classMul * U.rand(0.9, 1.12));
+
+    // Asa aynı zamanda az miktarda fiziksel saldırı verir
     if (slot === 'weapon' && cls === 'buyucu') {
-      stats.magic = Math.round(stats.attack * 1.15);
-      stats.attack = Math.round(stats.attack * 0.35);
+      stats.attack = Math.round(stats.magic * 0.30);
     }
 
     /* --- EFSUN ---
@@ -52,7 +62,7 @@ const Loot = {
       ? !!opts.enchant
       : U.chance(opts.enchantChance != null ? opts.enchantChance : E.baseChance);
 
-    const pool = GameData.AFFIXES.filter(a => a.key !== main.stat);
+    const pool = GameData.AFFIXES.filter(a => a.key !== mainStat);
     const used = new Set();
     const affixCount = enchanted ? rarity.affixes : 0;
     for (let i = 0; i < affixCount; i++) {
