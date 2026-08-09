@@ -742,17 +742,84 @@ body.is-touch #game{ cursor:default; }
   .create-head h1{ font-size:30px; }
 }
 
-/* Yatay (landscape) telefon: dikey alan çok az */
-@media (max-height: 480px) and (pointer: coarse) {
-  .hud-player{ transform:scale(.8); }
-  #joystick{ width:88px; height:88px; bottom:calc(60px + env(safe-area-inset-bottom)); }
-  #touch-actions{ bottom:calc(60px + env(safe-area-inset-bottom)); }
-  .tbtn.big{ width:66px; height:66px; font-size:26px; }
-  .tbtn.small{ width:44px; height:44px; font-size:15px; }
-  #skillbar{ bottom:calc(4px + env(safe-area-inset-bottom)); }
-  .skill{ width:48px; height:44px; }
-  .hud-top{ top:calc(6px + env(safe-area-inset-top)); left:auto; right:110px; }
-  #toasts{ bottom:auto; top:60px; }
+/* =============================================================
+   YATAY (landscape) TELEFON
+   Dikey alan çok az; ekran dört köşeye bölünür ve hiçbir öğe
+   bir diğerinin üstüne binmez.
+     sol üst  : oyuncu paneli + kaynaklar
+     sağ üst  : ☰ menü, altında mini harita
+     sol alt  : joystick        sağ alt : aksiyon tuşları
+     alt orta : yetenek çubuğu (ikisinin arasında)
+   ============================================================= */
+@media (max-height: 520px) and (pointer: coarse) {
+  /* --- sol üst --- */
+  .hud-player{
+    top:calc(6px + env(safe-area-inset-top)); left:calc(6px + env(safe-area-inset-left));
+    transform:scale(.76); transform-origin:top left; width:min(46vw,250px);
+  }
+  /* oyuncu paneli .76 ölçekte ~190px genişlik + ~50px yükseklik kaplar;
+     kaynak barı onun SAĞINA yerleşir, altına değil (üst üste binmesin) */
+  .hud-top{
+    top:calc(6px + env(safe-area-inset-top));
+    left:calc(202px + env(safe-area-inset-left));
+    right:auto; bottom:auto; transform:none;
+    padding:3px 7px; font-size:10.5px; gap:3px; border-radius:9px;
+  }
+
+  /* --- sağ üst --- */
+  #menu-toggle{ width:38px; height:38px; font-size:17px;
+    top:calc(6px + env(safe-area-inset-top)); right:calc(6px + env(safe-area-inset-right)); }
+  .hud-right{ top:calc(50px + env(safe-area-inset-top)); right:calc(6px + env(safe-area-inset-right)); width:78px; }
+  #minimap{ width:70px; height:70px; }
+  #zone-name{ font-size:9px; margin-top:2px; }
+  .minibox{ padding:5px; }
+  .menu{ top:calc(50px + env(safe-area-inset-top)); max-height:calc(100dvh - 70px); overflow-y:auto; }
+  .menu button{ font-size:12.5px; padding:7px 11px; min-width:112px; }
+
+  /* --- sol alt / sağ alt --- */
+  #joystick{ width:86px; height:86px;
+    bottom:calc(52px + env(safe-area-inset-bottom)); left:calc(10px + env(safe-area-inset-left)); }
+  #touch-actions{ bottom:calc(52px + env(safe-area-inset-bottom));
+    right:calc(10px + env(safe-area-inset-right)); gap:8px; }
+  .tbtn.big{ width:64px; height:64px; font-size:25px; }
+  .tbtn.small{ width:42px; height:42px; font-size:15px; }
+
+  /* --- alt orta: yetenek çubuğu joystick ile tuşların ARASINDA --- */
+  #skillbar{
+    bottom:calc(5px + env(safe-area-inset-bottom));
+    left:calc(106px + env(safe-area-inset-left));
+    right:calc(180px + env(safe-area-inset-right));
+    padding:0; gap:5px; justify-content:flex-start;
+  }
+  .skill{ width:46px; height:42px; padding:3px; }
+  .skill .sname{ font-size:8px; }
+
+  /* --- bildirimler ve ipuçları: boş kalan orta şeride --- */
+  #toasts{ bottom:calc(126px + env(safe-area-inset-bottom)); right:calc(10px + env(safe-area-inset-right));
+    top:auto; max-width:32vw; }
+  .toast{ font-size:10.5px; padding:5px 9px; max-width:32vw; }
+  /* etkileşim ipucu joystick ile tuşların arasındaki boşlukta */
+  #interact-hint{ bottom:calc(56px + env(safe-area-inset-bottom)); }
+  /* kombo göstergesi karakterin üstünde kalsın (alt şeritle karışmasın) */
+  #combo-ind{ top:28%; bottom:auto; }
+  #combo-ind b{ font-size:20px; }
+  #combo-ind.finish b{ font-size:25px; }
+  /* üst şeridin (oyuncu paneli + kaynaklar) hemen ALTINDA, ortada */
+  #boss-bar, #pvp-bar{
+    top:calc(58px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    width:min(44vw,320px); padding:5px 10px; font-size:11px;
+  }
+  .bb-name{ font-size:12px; margin-bottom:3px; }
+  .pvp-side{ font-size:11px; }
+
+  /* --- paneller: yatayda iki sütun daha verimli --- */
+  .modal-head{ padding:7px 12px; }
+  .modal-head h2{ font-size:15px; }
+  .modal-body{ padding:10px 12px 16px; }
+  .icells, .mcells{ grid-template-columns:repeat(auto-fill,minmax(30%,1fr)); }
+  .worn-grid, .skgrid{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+  .char-grid, .storage{ grid-template-columns:1fr 1fr; }
+  .tier-tab{ flex:1 1 30%; }
 }
 
 </style>
