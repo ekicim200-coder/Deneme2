@@ -164,6 +164,7 @@ class PlayerActor extends Actor {
     this.combo = 0;          // 0,1,2 → üçüncü vuruş bitirici
     this.comboTimer = 0;
     this.potionCds = { kucuk: 0, buyuk: 0, mana: 0 };
+    this.skillLv = save.skillLv || [1, 1, 1, 1];
     this.hp = this.maxHp;
   }
 
@@ -174,6 +175,7 @@ class PlayerActor extends Actor {
     this.hp = Math.min(this.maxHp, this.maxHp * ratio);
     this.level = this.save.level;
     this.element = this.save.race;
+    this.skillLv = this.save.skillLv;         // yetenek seviyeleri
   }
 
   update(dt, game) {
