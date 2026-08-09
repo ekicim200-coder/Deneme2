@@ -44,7 +44,9 @@ const Skills = {
       out.effect = {};
       for (const r in sk.effect) {
         const c = Object.assign({}, sk.effect[r]);
-        for (const k of ['slow', 'burn', 'stun', 'dur', 'dur2']) if (c[k]) c[k] = Math.round(c[k] * em * 1000) / 1000;
+        for (const k of ['slow', 'burn', 'dur', 'dur2']) if (c[k]) c[k] = Math.round(c[k] * em * 1000) / 1000;
+        // sersemletme düz artar ve üst sınırı vardır (PvP'de kilitlenme olmasın)
+        if (c.stun) c.stun = Math.min(L.stunCap, Math.round((c.stun + L.stunFlatPerLevel * n) * 100) / 100);
         out.effect[r] = c;
       }
     }
