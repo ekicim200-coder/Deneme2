@@ -105,6 +105,22 @@ const StatSystem = {
 
   power(ch) { return this.powerOf(this.compute(ch)); },
 
+  /* --- GÜÇ MANTIĞI ---
+     etkiliCan = can / (1 - savunma kesintisi) · savaşPuanı = güç × etkiliCan
+     Sınıflar bu puanı farklı dağıtır: savaşçı cana, okçu hasara, büyücü alana. */
+  effectiveHp(s) {
+    const K = GameData.POWER_MODEL.defenseK;
+    const dr = s.defense / (s.defense + K);
+    return Math.round(s.maxHp / (1 - dr));
+  },
+
+  battleScore(ch) {
+    const s = this.compute(ch);
+    const dmg = Math.max(s.attack, s.magic) * Math.max(0.4, s.attackSpeed) *
+                (1 + U.clamp(s.critChance, 0, 1) * Math.max(0, s.critDamage - 1));
+    return Math.round(dmg * this.effectiveHp(s) / 1000);
+  },
+
   /* Level için gereken XP */
   xpNeed(level) { return GameData.BALANCE.xpCurve(level); }
 };
