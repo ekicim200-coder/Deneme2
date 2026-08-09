@@ -19,11 +19,53 @@ const Skills = {
     return out;
   },
 
+  /* ---- YETENEK SEVİYESİ ----
+     Seviye arttıkça hasar artar, bekleme kısalır, yan etkiler güçlenir. */
+  levelOf(actor, idx) {
+    const max = GameData.SKILL_LEVEL.max;
+    if (actor && actor.skillLv) return U.clamp(actor.skillLv[idx] || 1, 1, max);
+    // botlar/yaratıklar: karakter leveline göre otomatik
+    return U.clamp(1 + Math.floor((actor && actor.level || 1) / 9), 1, max);
+  },
+
+  /* Seviyeye göre ölçeklenmiş yetenek kopyası döner (orijinali bozmaz) */
+  scaled(skillId, lv) {
+    const sk = GameData.SKILLS[skillId];
+    const L = GameData.SKILL_LEVEL;
+    const n = U.clamp(lv || 1, 1, L.max) - 1;
+    const out = Object.assign({}, sk);
+    out.lv = n + 1;
+    out.dmgBonus = L.damagePerLevel * n;
+    if (sk.mult) out.mult = sk.mult * (1 + L.damagePerLevel * n);
+    out.cd = Math.round(sk.cd * Math.max(L.cdFloor, 1 - L.cdPerLevel * n) * 10) / 10;
+    out.mana = Math.round(sk.mana * (1 + L.manaPerLevel * n));
+    const em = 1 + L.effectPerLevel * n;
+    if (sk.effect) {
+      out.effect = {};
+      for (const r in sk.effect) {
+        const c = Object.assign({}, sk.effect[r]);
+        for (const k of ['slow', 'burn', 'stun', 'dur', 'dur2']) if (c[k]) c[k] = Math.round(c[k] * em * 1000) / 1000;
+        out.effect[r] = c;
+      }
+    }
+    if (sk.heal) { out.heal = {}; for (const r in sk.heal) out.heal[r] = sk.heal[r] * em; }
+    if (sk.buff) {
+      out.buff = {};
+      for (const r in sk.buff) {
+        const b = Object.assign({}, sk.buff[r]);
+        for (const k in b) b[k] = Math.round(b[k] * em * 1000) / 1000;
+        out.buff[r] = b;
+      }
+    }
+    return out;
+  },
+
   /* Yeteneğin ne işe yaradığını insan diliyle + sayılarla anlatır.
      stats verilirse tahmini hasar da hesaplanır. */
-  info(skillId, race, cls, stats) {
-    const sk = GameData.SKILLS[skillId];
-    if (!sk) return null;
+  info(skillId, race, cls, stats, lv = 1) {
+    const base = GameData.SKILLS[skillId];
+    if (!base) return null;
+    const sk = this.scaled(skillId, lv);
     const magic = cls === 'buyucu';
     const power = stats ? (magic ? stats.magic : stats.attack) : 0;
 
@@ -72,6 +114,7 @@ const Skills = {
 
     return {
       id: skillId,
+      lv: sk.lv,
       name: sk.name[race],
       typeName: TYPE.name,
       how: TYPE.how,
@@ -86,7 +129,7 @@ const Skills = {
     const race = actor.race;
     const cls = actor.cls;
     const skillId = GameData.CLASSES[cls].skills[idx];
-    const sk = GameData.SKILLS[skillId];
+    const sk = this.scaled(skillId, this.levelOf(actor, idx));
     const s = actor.eff();
     const magic = cls === 'buyucu';
     const colors = GameData.RACES[race].colors;
@@ -168,7 +211,10 @@ const Skills = {
   tryCast(player, idx, game, aim) {
     if (player.dead || player.stunned || player.busy > 0.15) return false;
     const skillId = GameData.CLASSES[player.cls].skills[idx];
-    const sk = GameData.SKILLS[skillId];
+    const sk = this.scaled(skillId, this.levelOf(player, idx));
+    // kilitli yetenek
+    const need = GameData.SKILL_LEVEL.unlockAt[idx] || 1;
+    if ((player.level || 1) < need) { UI.toast(`Bu yetenek Level ${need}'te açılır`, 'warn'); return false; }
     if (player.skillCd[idx] > 0) return false;
     if (player.mana < sk.mana) { UI.toast('Enerji yetersiz', 'warn'); return false; }
     player.mana -= sk.mana;
