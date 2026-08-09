@@ -31,6 +31,7 @@ class Game {
       alloc: {}, equipment: {}, inventory: [], storage: [], mats: {},
       potions: { kucuk: 10, buyuk: 2, mana: 2 }, autoPotion: true,
       quests: [], age: 1, bossKills: 0, kills: 0, stonesBroken: 0,
+      skillLv: [1, 1, 1, 1], skillPoints: 0,
       pvp: { mmr: 0, wins: 0, losses: 0 },
       code: name.toUpperCase().slice(0, 5).replace(/\s/g, '') + '-' + U.randInt(1000, 9999),
       created: Date.now()
@@ -54,6 +55,14 @@ class Game {
       for (const k of ['kucuk', 'buyuk', 'mana']) if (s.potions[k] == null) s.potions[k] = 0;
       if (s.autoPotion === undefined) s.autoPotion = true;
       if (s.stonesBroken === undefined) s.stonesBroken = 0;
+      if (!Array.isArray(s.skillLv) || s.skillLv.length !== 4) s.skillLv = [1, 1, 1, 1];
+      if (s.skillPoints === undefined) {
+        // eski kayıt: levelden hak edilen puanları geri ver
+        const L = GameData.SKILL_LEVEL;
+        const earned = Math.max(0, s.level - L.firstPointAt + 1) * L.pointsPerLevel;
+        const spent = s.skillLv.reduce((a, b) => a + (b - 1), 0);
+        s.skillPoints = Math.max(0, earned - spent);
+      }
       if (!s.age) s.age = 1;
       if (!s.bossKills) s.bossKills = 0;
       if (!s.code) s.code = (s.name || 'OYUN').toUpperCase().slice(0, 5) + '-' + U.randInt(1000, 9999);
@@ -443,12 +452,46 @@ class Game {
       s.xp -= need;
       s.level++;
       s.statPoints += GameData.BALANCE.statPointsPerLevel;
+
+      const SL = GameData.SKILL_LEVEL;
+      let gainedSkill = 0;
+      if (s.level >= SL.firstPointAt) { s.skillPoints += SL.pointsPerLevel; gainedSkill = SL.pointsPerLevel; }
+
       need = StatSystem.xpNeed(s.level);
       this.player.refreshStats();
       this.player.hp = this.player.maxHp;
       this.fx.levelUp(this.player.x, this.player.y);
-      UI.toast(`Level ${s.level}! +${GameData.BALANCE.statPointsPerLevel} stat puanı`, 'good');
+      UI.toast(`Level ${s.level}! +${GameData.BALANCE.statPointsPerLevel} stat` +
+        (gainedSkill ? ` · +${gainedSkill} yetenek puanı` : ''), 'good');
+
+      // yeni açılan yetenek var mı?
+      const idx = SL.unlockAt.indexOf(s.level);
+      if (idx >= 0) {
+        const id = GameData.CLASSES[s.cls].skills[idx];
+        UI.toast(`Yeni yetenek açıldı: ${GameData.SKILLS[id].name[s.race]} (${idx + 1} tuşu)`, 'good');
+      }
     }
+    UI.refreshHud();
+  }
+
+  /* Yetenek yükseltme — hasar artar, bekleme kısalır */
+  upgradeSkill(idx) {
+    const s = this.save, SL = GameData.SKILL_LEVEL;
+    if (idx < 0 || idx > 3) return false;
+    if (s.level < (SL.unlockAt[idx] || 1)) {
+      UI.toast(`Bu yetenek Level ${SL.unlockAt[idx]}'te açılır`, 'warn'); return false;
+    }
+    if (s.skillLv[idx] >= SL.max) { UI.toast('Bu yetenek zaten en üst seviyede', 'warn'); return false; }
+    if (s.skillPoints <= 0) { UI.toast('Yetenek puanın yok — level atla', 'warn'); return false; }
+    s.skillPoints--;
+    s.skillLv[idx]++;
+    this.player.refreshStats();
+    const id = GameData.CLASSES[s.cls].skills[idx];
+    UI.toast(`${GameData.SKILLS[id].name[s.race]} → Seviye ${s.skillLv[idx]}`, 'good');
+    this.saveGame();
+    UI.refreshHud();
+    if (UI.panel === 'skills') UI.render();
+    return true;
   }
 
   /* ---------------- Oyuncu aksiyonları ---------------- */
