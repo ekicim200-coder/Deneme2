@@ -85,7 +85,7 @@ const UI = {
       const el = document.getElementById('skill-' + i);
       if (!el) continue;
       const skId = GameData.CLASSES[p.cls].skills[i];
-      const sk = GameData.SKILLS[skId];
+      const sk = Skills.scaled(skId, Skills.levelOf(p, i));   // seviyeye göre kısalmış bekleme
       const r = U.clamp(p.skillCd[i] / sk.cd, 0, 1);
       el.querySelector('.cd').style.height = (r * 100) + '%';
       el.querySelector('.cd-text').textContent = p.skillCd[i] > 0 ? Math.ceil(p.skillCd[i]) : '';
@@ -95,6 +95,18 @@ const UI = {
     if (dash) dash.querySelector('.cd').style.height =
       U.clamp(p.dashCd / GameData.BALANCE.dashCd, 0, 1) * 100 + '%';
     const s = this.game.save;
+
+    // yetenek rozetleri: seviye ve kilit durumu canlı güncellenir
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById('skill-' + i);
+      if (!el) continue;
+      const lv = (s.skillLv && s.skillLv[i]) || 1;
+      const locked = s.level < (GameData.SKILL_LEVEL.unlockAt[i] || 1);
+      const badge = el.querySelector('.sklv');
+      if (badge) badge.textContent = locked ? '🔒' : 'Sv' + lv;
+      el.classList.toggle('locked', locked);
+    }
+
     for (const pot of Object.values(GameData.POTIONS)) {
       const el = document.getElementById('btn-pot-' + pot.id);
       if (!el) continue;
@@ -118,11 +130,17 @@ const UI = {
     let html = '';
     skills.forEach((id, i) => {
       const sk = GameData.SKILLS[id];
-      const info = Skills.info(id, s.race, s.cls, null);
-      const tip = `${info.name} — ${info.typeName}\n${info.how}\n` +
-        info.rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
-        (info.effects.length ? '\n' + info.effects.join('\n') : '');
-      html += `<button class="skill" id="skill-${i}" data-skill="${i}" title="${tip.replace(/"/g, '&quot;')}">
+      const lv = (s.skillLv && s.skillLv[i]) || 1;
+      const need = GameData.SKILL_LEVEL.unlockAt[i] || 1;
+      const locked = s.level < need;
+      const info = Skills.info(id, s.race, s.cls, null, lv);
+      const tip = locked
+        ? `${info.name} — Level ${need}'te açılır`
+        : `${info.name} — ${info.typeName} · Sv ${lv}\n${info.how}\n` +
+          info.rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
+          (info.effects.length ? '\n' + info.effects.join('\n') : '');
+      html += `<button class="skill${locked ? ' locked' : ''}" id="skill-${i}" data-skill="${i}" title="${tip.replace(/"/g, '&quot;')}">
+        <span class="sklv">${locked ? '🔒' : 'Sv' + lv}</span>
         <span class="key">${i + 1}</span>
         <span class="sname">${sk.name[s.race]}</span>
         <span class="mana">${sk.mana}</span>
@@ -351,31 +369,58 @@ const UI = {
     const ids = GameData.CLASSES[s.cls].skills;
     const race = GameData.RACES[s.race];
 
+    const SL = GameData.SKILL_LEVEL;
     const cards = ids.map((id, i) => {
-      const info = Skills.info(id, s.race, s.cls, st);
-      const rows = info.rows.map(([k, v]) => `<div class="skrow"><span>${k}</span><b>${v}</b></div>`).join('');
+      const lv = s.skillLv[i] || 1;
+      const need = SL.unlockAt[i] || 1;
+      const locked = s.level < need;
+      const maxed = lv >= SL.max;
+      const info = Skills.info(id, s.race, s.cls, st, lv);
+      const next = maxed ? null : Skills.info(id, s.race, s.cls, st, lv + 1);
+
+      const rows = info.rows.map(([k, v], ri) => {
+        const nv = next ? next.rows[ri] && next.rows[ri][1] : null;
+        const changed = nv && nv !== v;
+        return `<div class="skrow"><span>${k}</span><b>${v}${changed ? ` <i class="nx">→ ${nv}</i>` : ''}</b></div>`;
+      }).join('');
+
       const eff = info.effects.length
         ? `<ul class="skeff">${info.effects.map(e => `<li>${e}</li>`).join('')}</ul>`
         : '<p class="dim small">Ek etkisi yok.</p>';
-      return `<div class="skcard" style="--c:${race.colors.primary}">
+
+      const bar = `<div class="sklvbar">${Array.from({ length: SL.max },
+        (_, k) => `<i class="${k < lv ? 'on' : ''}"></i>`).join('')}</div>`;
+
+      const btn = locked
+        ? `<button class="btn small" disabled>Level ${need}'te açılır</button>`
+        : maxed
+          ? `<button class="btn small" disabled>En üst seviye (${SL.max})</button>`
+          : `<button class="btn small primary" data-skup="${i}" ${s.skillPoints <= 0 ? 'disabled' : ''}>
+               Yükselt → Sv ${lv + 1} (1 puan)</button>`;
+
+      return `<div class="skcard${locked ? ' locked' : ''}" style="--c:${race.colors.primary}">
         <div class="skhead">
           <span class="skkey">${i + 1}</span>
           <div>
             <b>${info.name}</b>
-            <span class="dim small">${info.typeName}</span>
+            <span class="dim small">${info.typeName} · <b class="lvtag">Seviye ${lv}/${SL.max}</b></span>
           </div>
         </div>
+        ${bar}
         <p class="skhow">${info.how}</p>
         <p class="dim small">${info.desc}</p>
         <div class="skrows">${rows}</div>
         <h5>Etkiler</h5>
         ${eff}
+        ${btn}
       </div>`;
     }).join('');
 
     const combo = GameData.BALANCE.combo;
-    this.shell('Yetenekler', `
+    this.shell(`Yetenekler <span class="pill">${s.skillPoints} yetenek puanı</span>`, `
       <div class="skills-wrap">
+        <p class="dim small">Her level 1 yetenek puanı verir. Yükselttikçe <b>hasar +%${Math.round(SL.damagePerLevel * 100)}</b>,
+           <b>bekleme −%${(SL.cdPerLevel * 100).toFixed(1)}</b> (en fazla −%${Math.round((1 - SL.cdFloor) * 100)}) ve yan etkiler +%${Math.round(SL.effectPerLevel * 100)} güçlenir.</p>
         <div class="skinfo" style="--c:${race.colors.primary}">
           <b>Temel saldırı — kombo</b>
           <p>Sol tıkı basılı tut: vuruşlar zincirlenir.
@@ -390,6 +435,13 @@ const UI = {
           <p>${race.passive.text}</p>
         </div>
       </div>`, 'wide');
+    this.bindSkillPanel();
+  },
+
+  bindSkillPanel() {
+    this.el.modal.querySelectorAll('[data-skup]').forEach(b => {
+      b.addEventListener('click', () => this.game.upgradeSkill(+b.dataset.skup));
+    });
   },
 
   /* ---------------- Envanter ---------------- */
