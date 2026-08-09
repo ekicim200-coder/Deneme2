@@ -312,8 +312,12 @@ const UI = {
             <div>
               <h3>${s.name}</h3>
               <p>${GameData.RACES[s.race].name} · ${GameData.CLASSES[s.cls].name}</p>
-              <p class="dim">Güç: <b>${U.fmt(power)}</b> · Çağ: ${GameData.AGES.find(a => a.id === s.age).name}</p>
+              <p class="dim">Güç: <b>${U.fmt(power)}</b> · Etkili Can: <b>${U.fmt(StatSystem.effectiveHp(st))}</b> · Savaş Puanı: <b>${U.fmt(StatSystem.battleScore(s))}</b> · Çağ: ${GameData.AGES.find(a => a.id === s.age).name}</p>
             </div>
+          </div>
+          <div class="race-passive" style="--c:${GameData.CLASSES[s.cls].id ? GameData.RACES[s.race].colors.primary : ''}">
+            <b>Sınıf rolü · ${GameData.CLASSES[s.cls].name}</b>
+            <span>${GameData.POWER_MODEL.roles[s.cls].note} · Silah çarpanı ×${GameData.POWER_MODEL.roles[s.cls].weaponMul}</span>
           </div>
           <div class="race-passive" style="--c:${GameData.RACES[s.race].colors.primary}">
             <b>Pasif · ${GameData.RACES[s.race].passive.name}</b>
