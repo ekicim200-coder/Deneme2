@@ -48,9 +48,9 @@ const GameData = {
     },
     okcu: {
       id: 'okcu', name: 'Okçu', role: 'Menzilli Fiziksel',
-      desc: 'Yüksek saldırı hızı ve kritik. Savunması en düşük sınıf — vurulmadan oynamalısın.',
+      desc: 'Yüksek saldırı hızı ve kritik. Kısa menzil ve düşük savunma — konum tutmayı bilmek şart.',
       base: { maxHp: 430, attack: 46, magic: 14, defense: 15, attackSpeed: 1.30,
-              moveSpeed: 4.6, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 7.5 },
+              moveSpeed: 4.0, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 4.0 },
       growth: { maxHp: 34, attack: 5.2, magic: 1.2, defense: 1.35 },
       damageStat: 'attack',
       skills: ['cokluOk', 'deliciOk', 'kritikOk', 'okYagmuru']
@@ -59,7 +59,7 @@ const GameData = {
       id: 'buyucu', name: 'Büyücü', role: 'Alan Hasarı / Kontrol',
       desc: 'Element ve alan hasarı. Kalabalığı siler ama en yavaş yürüyen ve kırılgan sınıftır.',
       base: { maxHp: 510, attack: 22, magic: 44, defense: 26, attackSpeed: 1.05,
-              moveSpeed: 3.45, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 6.5 },
+              moveSpeed: 3.45, critChance: 0.07, critDamage: 1.55, penetration: 0.06, range: 5.0 },
       growth: { maxHp: 39, attack: 1.4, magic: 4.2, defense: 2.4 },
       damageStat: 'magic',
       skills: ['elementTopu', 'alanBuyusu', 'kontrolBuyusu', 'ultimate']
