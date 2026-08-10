@@ -49,8 +49,8 @@ const GameData = {
     okcu: {
       id: 'okcu', name: 'Okçu', role: 'Menzilli Fiziksel',
       desc: 'Yüksek saldırı hızı ve kritik. Kısa menzil ve düşük savunma — konum tutmayı bilmek şart.',
-      base: { maxHp: 430, attack: 46, magic: 14, defense: 15, attackSpeed: 1.30,
-              moveSpeed: 4.0, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 4.0 },
+      base: { maxHp: 430, attack: 20, magic: 14, defense: 15, attackSpeed: 1,
+              moveSpeed: 3.0, critChance: 0.10, critDamage: 1.6, penetration: 0.10, range: 4.0 },
       growth: { maxHp: 34, attack: 5.2, magic: 1.2, defense: 1.35 },
       damageStat: 'attack',
       skills: ['cokluOk', 'deliciOk', 'kritikOk', 'okYagmuru']
