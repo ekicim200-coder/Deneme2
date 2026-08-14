@@ -11,8 +11,17 @@ class Actor {
       dead: false, hp: 100, atkCd: 0, busy: 0, animTime: 0, hitFlash: 0,
       effects: [], vx: 0, vy: 0, knock: 0, deathTimer: 0,
       kind: 'monster', noHitTime: 0,
-      swingT: 0, swingDur: 0, swingStep: 0, swingSpin: false
+      swingT: 0, swingDur: 0, swingStep: 0, swingSpin: false,
+      /* --- animasyon durumu --- */
+      moveAmt: 0,        // 0 dururken, ~1 tam koşuda (yumuşatılmış)
+      gait: 0,           // adım fazı — bacak salınımı
+      lean: 0,           // hareket yönüne gövde eğilmesi
+      squash: 0,         // darbe/iniş ezilmesi
+      deathT: 0,         // ölüm animasyonu ilerlemesi
+      lastX: 0, lastY: 0, _lastStep: 0,
+      breathe: Math.random() * 6.28
     }, cfg);
+    this.lastX = this.x; this.lastY = this.y;
     this.stats = cfg.stats || StatSystem.empty();
     this.maxHp = this.stats.maxHp;
     if (cfg.hp === undefined) this.hp = this.maxHp;
@@ -54,6 +63,27 @@ class Actor {
     if (this.busy > 0) this.busy -= dt;
     if (this.swingT > 0) this.swingT -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    /* --- Animasyon: gerçek yer değiştirmeden hız türet ---
+       Joystick, klavye, AI ve atılma dahil her hareket türü aynı yürüyüşü besler. */
+    const moved = U.dist(this.lastX, this.lastY, this.x, this.y);
+    this.lastX = this.x; this.lastY = this.y;
+    const spd = dt > 0 ? moved / dt : 0;
+    this.moveAmt = U.lerp(this.moveAmt, U.clamp(spd / 3.2, 0, 1.35), Math.min(1, dt * 11));
+    this.gait += dt * (4.5 + this.moveAmt * 7.5) * (this.moveAmt > 0.05 ? 1 : 0.22);
+    this.lean = U.lerp(this.lean, this.moveAmt * 0.16, Math.min(1, dt * 8));
+    if (this.squash > 0) this.squash = Math.max(0, this.squash - dt * 2.2);
+    if (this.dead) this.deathT = Math.min(1, this.deathT + dt * 2.6);
+
+    // her adımda ayaktan toz kalkar
+    if (this.moveAmt > 0.45 && game && game.fx) {
+      const step = Math.floor(this.gait / Math.PI);
+      if (step !== this._lastStep) {
+        this._lastStep = step;
+        const gc = (game.world && (game.world.accent || game.world.def.accent)) || '#8892a6';
+        game.fx.dust(this.x, this.y, gc);
+      }
+    }
 
     // efekt süreleri + yanma hasarı
     for (let i = this.effects.length - 1; i >= 0; i--) {
