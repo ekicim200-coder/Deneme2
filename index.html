@@ -2264,8 +2264,17 @@ class Actor {
       dead: false, hp: 100, atkCd: 0, busy: 0, animTime: 0, hitFlash: 0,
       effects: [], vx: 0, vy: 0, knock: 0, deathTimer: 0,
       kind: 'monster', noHitTime: 0,
-      swingT: 0, swingDur: 0, swingStep: 0, swingSpin: false
+      swingT: 0, swingDur: 0, swingStep: 0, swingSpin: false,
+      /* --- animasyon durumu --- */
+      moveAmt: 0,        // 0 dururken, ~1 tam koşuda (yumuşatılmış)
+      gait: 0,           // adım fazı — bacak salınımı
+      lean: 0,           // hareket yönüne gövde eğilmesi
+      squash: 0,         // darbe/iniş ezilmesi
+      deathT: 0,         // ölüm animasyonu ilerlemesi
+      lastX: 0, lastY: 0, _lastStep: 0,
+      breathe: Math.random() * 6.28
     }, cfg);
+    this.lastX = this.x; this.lastY = this.y;
     this.stats = cfg.stats || StatSystem.empty();
     this.maxHp = this.stats.maxHp;
     if (cfg.hp === undefined) this.hp = this.maxHp;
@@ -2307,6 +2316,27 @@ class Actor {
     if (this.busy > 0) this.busy -= dt;
     if (this.swingT > 0) this.swingT -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    /* --- Animasyon: gerçek yer değiştirmeden hız türet ---
+       Joystick, klavye, AI ve atılma dahil her hareket türü aynı yürüyüşü besler. */
+    const moved = U.dist(this.lastX, this.lastY, this.x, this.y);
+    this.lastX = this.x; this.lastY = this.y;
+    const spd = dt > 0 ? moved / dt : 0;
+    this.moveAmt = U.lerp(this.moveAmt, U.clamp(spd / 3.2, 0, 1.35), Math.min(1, dt * 11));
+    this.gait += dt * (4.5 + this.moveAmt * 7.5) * (this.moveAmt > 0.05 ? 1 : 0.22);
+    this.lean = U.lerp(this.lean, this.moveAmt * 0.16, Math.min(1, dt * 8));
+    if (this.squash > 0) this.squash = Math.max(0, this.squash - dt * 2.2);
+    if (this.dead) this.deathT = Math.min(1, this.deathT + dt * 2.6);
+
+    // her adımda ayaktan toz kalkar
+    if (this.moveAmt > 0.45 && game && game.fx) {
+      const step = Math.floor(this.gait / Math.PI);
+      if (step !== this._lastStep) {
+        this._lastStep = step;
+        const gc = (game.world && (game.world.accent || game.world.def.accent)) || '#8892a6';
+        game.fx.dust(this.x, this.y, gc);
+      }
+    }
 
     // efekt süreleri + yanma hasarı
     for (let i = this.effects.length - 1; i >= 0; i--) {
@@ -3014,6 +3044,14 @@ class Fx {
   trail(x, y, color) {
     this.parts.push({ x, y, z: 0.4, vx: 0, vy: 0, vz: 0.6, life: 0.35, max: 0.35, color, size: 5 });
   }
+  /* Koşarken ayaktan kalkan toz bulutu */
+  dust(x, y, color) {
+    const a = U.rand(0, Math.PI * 2);
+    this.parts.push({
+      x, y, z: 0.05, vx: Math.cos(a) * U.rand(0.2, 0.9), vy: Math.sin(a) * U.rand(0.2, 0.9),
+      vz: U.rand(0.3, 1.1), life: U.rand(0.3, 0.55), max: 0.55, color, size: U.rand(2, 4.5)
+    });
+  }
   ring(x, y, color, radius) { this.rings.push({ x, y, color, r: 0.2, max: radius, life: 0.45, total: 0.45 }); }
   arc(x, y, angle, radius, color) { this.arcs.push({ x, y, angle, radius, color, life: 0.22, total: 0.22 }); }
 
@@ -3140,6 +3178,7 @@ class Renderer {
   /* ---------------- Ana çizim ---------------- */
   draw() {
     const g = this.game, ctx = this.ctx, w = g.world;
+    this.envT = performance.now() / 1000;
     const so = this.shakeOffset(); this.sx = so.x; this.sy = so.y;
     ctx.clearRect(0, 0, this.vw, this.vh);
 
@@ -3177,31 +3216,114 @@ class Renderer {
 
     this.drawParticles(g.fx.parts);
     this.drawNumbers(g.fx.numbers);
+    this.drawAmbient(w);
+    this.drawVignette();
     this.drawMinimap();
+  }
+
+  /* --- Ortam parçacıkları: su haritalarında kar, ateşte kıvılcım --- */
+  drawAmbient(w) {
+    const ctx = this.ctx;
+    const el = w.element || w.def.element;
+    if (!el && !w.def.mine) return;
+    const fire = el === 'ates';
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const n = coarse ? 24 : 46;          // mobilde daha az parçacık
+    const t = this.envT;
+    ctx.save();
+    for (let i = 0; i < n; i++) {
+      const seed = i * 97.13;
+      const sp = fire ? 26 : 34;
+      const life = ((t * sp + seed) % 340) / 340;                 // 0→1 düşüş/yükseliş
+      const px = ((Math.sin(seed) * 0.5 + 0.5) * this.vw + Math.sin(t * 0.6 + i) * 26) % this.vw;
+      const py = fire
+        ? this.vh - life * this.vh * 1.05                          // kıvılcım yukarı
+        : life * this.vh * 1.05;                                   // kar aşağı
+      const size = (fire ? 1.6 : 2.1) * (0.6 + (i % 3) * 0.3) * this.cam.zoom;
+      const fade = Math.sin(life * Math.PI);
+      ctx.globalAlpha = (fire ? 0.55 : 0.34) * fade;
+      ctx.fillStyle = fire ? (i % 3 ? '#ff9a3c' : '#ffd15c') : '#cfe9ff';
+      ctx.beginPath(); ctx.arc(px, py, size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* --- Köşe karartması: ortadaki aksiyona odak --- */
+  drawVignette() {
+    const ctx = this.ctx;
+    const g = ctx.createRadialGradient(
+      this.vw / 2, this.vh / 2, Math.min(this.vw, this.vh) * 0.42,
+      this.vw / 2, this.vh / 2, Math.max(this.vw, this.vh) * 0.78);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.42)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.vw, this.vh);
+  }
+
+  /* --- ZEMİN ÖNBELLEĞİ ---
+     Karolar her karede yeniden çizilmez: harita bir kez büyük bir arka canvas'a
+     basılır, sonra tek drawImage ile ekrana kopyalanır. Kare başına binlerce
+     çizim çağrısı bire iner (mobilde belirgin fark). Yalnızca "parıldayan"
+     aksan karoları canlı çizilir. */
+  buildGroundCache(w) {
+    const cw = Math.ceil((w.w + w.h) * (TW / 2)) + TW;
+    const ch = Math.ceil((w.w + w.h) * (TH / 2)) + TH * 2;
+    const cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    const c = cv.getContext('2d');
+    const ox = w.h * (TW / 2) + TW / 2;      // negatif iso X'i kaydır
+    const oy = TH;
+
+    const base = (w.ground || w.def.ground), acc = (w.accent || w.def.accent);
+    const hw = TW / 2, hh = TH / 2;
+    this.glow = [];                          // canlı çizilecek parlayan karolar
+    for (let y = 0; y < w.h; y++) {
+      for (let x = 0; x < w.w; x++) {
+        const gx = x + 0.5, gy = y + 0.5;
+        const px = (gx - gy) * hw + ox;
+        const py = (gx + gy) * hh + oy;
+        const t = w.tiles[y][x];
+        c.beginPath();
+        c.moveTo(px, py - hh); c.lineTo(px + hw, py);
+        c.lineTo(px, py + hh); c.lineTo(px - hw, py);
+        c.closePath();
+        c.fillStyle = ((x + y) % 2 === 0) ? base : this.shade(base, 1.08);
+        c.fill();
+        if (t > 0.88 && t <= 0.94) { c.fillStyle = this.alpha(acc, 0.07); c.fill(); }
+        c.strokeStyle = 'rgba(0,0,0,0.14)'; c.lineWidth = 1; c.stroke();
+        if (t > 0.94) this.glow.push({ x: gx, y: gy, p: (x * 0.7 + y * 1.1) });
+      }
+    }
+    this.groundCache = cv;
+    this.groundOx = ox; this.groundOy = oy;
+    this.groundKey = w.id + ':' + w.w + 'x' + w.h + ':' + (w.ground || '');
   }
 
   drawGround(w) {
     const ctx = this.ctx;
-    const base = (w.ground || w.def.ground), acc = (w.accent || w.def.accent);
-    for (let y = 0; y < w.h; y++) {
-      for (let x = 0; x < w.w; x++) {
-        const s = this.worldToScreen(x + 0.5, y + 0.5);
-        if (s.x < -TW || s.x > this.vw + TW || s.y < -TH * 3 || s.y > this.vh + TH * 3) continue;
-        const t = w.tiles[y][x];
-        ctx.beginPath();
-        const hw = (TW / 2) * this.cam.zoom, hh = (TH / 2) * this.cam.zoom;
-        ctx.moveTo(s.x, s.y - hh);
-        ctx.lineTo(s.x + hw, s.y);
-        ctx.lineTo(s.x, s.y + hh);
-        ctx.lineTo(s.x - hw, s.y);
-        ctx.closePath();
-        ctx.fillStyle = ((x + y) % 2 === 0) ? base : this.shade(base, 1.08);
-        ctx.fill();
-        if (t > 0.94) { ctx.fillStyle = this.alpha(acc, 0.25); ctx.fill(); }
-        ctx.strokeStyle = 'rgba(0,0,0,0.14)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
+    const key = w.id + ':' + w.w + 'x' + w.h + ':' + (w.ground || '');
+    if (!this.groundCache || this.groundKey !== key) this.buildGroundCache(w);
+
+    // önbelleği kameraya göre tek seferde bas
+    const z = this.cam.zoom;
+    const ci = this.iso(this.cam.x, this.cam.y);
+    const dx = (-this.groundOx - ci.x) * z + this.vw / 2 + this.sx;
+    const dy = (-this.groundOy - ci.y) * z + this.vh / 2 + this.sy;
+    ctx.drawImage(this.groundCache, dx, dy,
+      this.groundCache.width * z, this.groundCache.height * z);
+
+    /* Parıldayan aksan karoları — yalnızca ekranda görünenler */
+    const acc = (w.accent || w.def.accent);
+    const hw = (TW / 2) * z, hh = (TH / 2) * z;
+    for (const g of this.glow) {
+      const s = this.worldToScreen(g.x, g.y);
+      if (s.x < -TW || s.x > this.vw + TW || s.y < -TH * 2 || s.y > this.vh + TH * 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - hh); ctx.lineTo(s.x + hw, s.y);
+      ctx.lineTo(s.x, s.y + hh); ctx.lineTo(s.x - hw, s.y);
+      ctx.closePath();
+      ctx.fillStyle = this.alpha(acc, 0.18 + Math.sin(this.envT * 1.4 + g.p) * 0.12);
+      ctx.fill();
     }
   }
 
@@ -3372,16 +3494,26 @@ class Renderer {
     const s = this.worldToScreen(a.x, a.y);
     const scale = a.size * z;
     const bodyH = 34 * scale;
+    const mv = a.moveAmt || 0;             // 0 dururken, ~1 koşuda
+    const gait = a.gait || 0;
 
-    // gölge
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(s.x, s.y, 15 * scale, 7 * scale, 0, 0, Math.PI * 2); ctx.fill();
-
+    /* --- Ölüm animasyonu: yana devrilip solar --- */
     if (a.dead) {
+      const dT = U.clamp(a.deathT || 1, 0, 1);
       ctx.save();
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = (1 - dT) * 0.85;
+      ctx.translate(s.x, s.y);
+      ctx.rotate(dT * 1.35);                        // devrilme
+      ctx.scale(1, 1 - dT * 0.45);                  // yere yayılma
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(0, 0, 15 * scale, 7 * scale, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = a.color;
-      ctx.beginPath(); ctx.ellipse(s.x, s.y - 3 * scale, 15 * scale, 6 * scale, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-8 * scale, 0); ctx.lineTo(-6 * scale, -22 * scale);
+      ctx.lineTo(6 * scale, -22 * scale); ctx.lineTo(8 * scale, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = this.shade(a.color, 1.3);
+      ctx.beginPath(); ctx.arc(0, -26 * scale, 6.5 * scale, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
       return;
     }
@@ -3389,7 +3521,29 @@ class Renderer {
     // ekran açısına dönüştürülmüş yön
     const fdx = Math.cos(a.facing), fdy = Math.sin(a.facing);
     const sang = Math.atan2((fdx + fdy) * (TH / 2), (fdx - fdy) * (TW / 2));
-    const bob = Math.sin(a.animTime * 9) * (a.busy > 0 ? 0 : 1.2) * scale;
+
+    /* --- Nefes alma (dururken) + koşu zıplaması (hareket ederken) --- */
+    const breathe = Math.sin(a.animTime * 1.7 + (a.breathe || 0)) * 0.7 * (1 - mv) * scale;
+    const runBob = Math.abs(Math.sin(gait)) * -2.6 * mv * scale;   // adımda yukarı iter
+    const bob = breathe + runBob;
+
+    /* --- Darbe ezilmesi: vurulunca gövde bir an basıklaşır --- */
+    const sq = a.squash || 0;
+    const sqY = 1 - sq * 0.16, sqX = 1 + sq * 0.13;
+
+    // gölge — zıplarken küçülür, ezilirken genişler
+    const shadowK = 1 - Math.abs(runBob) / (3.4 * scale) * 0.28 + sq * 0.12;
+    ctx.save();
+    ctx.globalAlpha = 0.34 * (0.75 + shadowK * 0.25);
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(s.x, s.y, 15 * scale * shadowK, 7 * scale * shadowK, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // gövde dönüşümü (eğilme + ezilme) — bacaklar hariç her şey buna tabi
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.transform(sqX, 0, (a.lean || 0) * Math.cos(sang) * -0.55, sqY, 0, 0);
+    ctx.translate(-s.x, -s.y);
 
     // element aurası
     const race = a.element === 'ates' ? GameData.RACES.ates : GameData.RACES.su;
@@ -3406,13 +3560,25 @@ class Renderer {
     const hit = a.hitFlash > 0;
     const main = hit ? '#ffffff' : a.color;
 
-    // bacaklar
+    /* --- Bacaklar: adım fazına göre öne/arkaya salınır, diz kırılır --- */
     ctx.strokeStyle = this.shade(main, 0.5);
     ctx.lineWidth = 4.5 * scale; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(s.x - 4 * scale, s.y - 10 * scale); ctx.lineTo(s.x - 5 * scale, s.y - 1 * scale);
-    ctx.moveTo(s.x + 4 * scale, s.y - 10 * scale); ctx.lineTo(s.x + 5 * scale, s.y - 1 * scale);
-    ctx.stroke();
+    const hipY = s.y - 10 * scale;
+    const stride = 5.2 * scale * mv;
+    for (const side of [-1, 1]) {
+      const ph = gait + (side < 0 ? 0 : Math.PI);
+      const swingX = Math.sin(ph) * stride;
+      const lift = Math.max(0, Math.sin(ph)) * 2.6 * scale * mv;   // ayak yerden kalkar
+      const hipX = s.x + side * 4 * scale;
+      const kneeX = hipX + swingX * 0.5;
+      const kneeY = hipY + 4.6 * scale - lift * 0.45;
+      const footX = hipX + swingX;
+      const footY = s.y - 1 * scale - lift;
+      ctx.beginPath();
+      ctx.moveTo(hipX, hipY);
+      ctx.quadraticCurveTo(kneeX, kneeY, footX, footY);
+      ctx.stroke();
+    }
 
     // gövde
     const ty = s.y - bodyH + bob;
@@ -3431,9 +3597,29 @@ class Renderer {
     ctx.lineTo(s.x + 9 * scale, s.y - 9 * scale);
     ctx.closePath(); ctx.fill();
 
-    // kafa
+    /* --- Pelerin: koşarken ve saldırırken arkaya dalgalanır --- */
+    if (a.cls || a.team === 'player') {
+      const flap = Math.sin(a.animTime * (5 + mv * 6)) * (0.5 + mv * 1.6) * scale;
+      const back = -Math.cos(sang) * (2 + mv * 7) * scale;
+      const capeCol = a.cls === 'buyucu' ? this.shade(race.colors.primary, 0.75) : this.shade(main, 0.42);
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = capeCol;
+      ctx.beginPath();
+      ctx.moveTo(s.x - 6.5 * scale, ty + 5 * scale);
+      ctx.quadraticCurveTo(s.x + back * 0.6 - 4 * scale, s.y - 16 * scale + flap,
+                           s.x + back - 2 * scale, s.y - 5 * scale + flap * 1.4);
+      ctx.lineTo(s.x + back + 3 * scale, s.y - 4 * scale - flap * 1.2);
+      ctx.quadraticCurveTo(s.x + back * 0.6 + 4 * scale, s.y - 16 * scale - flap,
+                           s.x + 6.5 * scale, ty + 5 * scale);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // kafa — koşarken hafif öne düşer
+    const headTilt = mv * 1.6 * scale;
     ctx.fillStyle = hit ? '#fff' : this.shade(main, 1.35);
-    ctx.beginPath(); ctx.arc(s.x, ty - 2 * scale, 7 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x + Math.cos(sang) * headTilt, ty - 2 * scale, 7 * scale, 0, Math.PI * 2); ctx.fill();
 
     // silah / sınıf işareti
     let swing = a.busy > 0 ? Math.sin((0.35 - Math.max(0, a.busy)) / 0.35 * Math.PI) : 0;
@@ -3471,15 +3657,49 @@ class Renderer {
     }
     ctx.restore();
 
-    // durum efektleri
+    ctx.restore();      // gövde dönüşümü (eğilme + ezilme) burada biter
+
+    /* --- Durum efektleri: artık canlı animasyonlu --- */
     if (a.effects.length) {
-      let ox = -((a.effects.length - 1) * 5 * scale) / 2;
+      const now = performance.now() / 1000;
       for (const e of a.effects) {
-        const col = e.type === 'burn' ? '#ff7a2f' : e.type === 'slow' ? '#4fd6ff'
-          : e.type === 'stun' ? '#ffd15c' : '#9fe0a0';
-        ctx.fillStyle = col;
-        ctx.beginPath(); ctx.arc(s.x + ox, ty - 16 * scale, 2.6 * scale, 0, Math.PI * 2); ctx.fill();
-        ox += 5 * scale;
+        if (e.type === 'burn') {
+          // gövdeden yükselen alev dilleri
+          for (let i = 0; i < 3; i++) {
+            const ph = now * 5 + i * 2.1;
+            const fx = s.x + Math.sin(ph) * 5 * scale;
+            const fy = ty + 4 * scale - ((ph % 1.6) / 1.6) * 22 * scale;
+            const al = 0.75 * (1 - (ph % 1.6) / 1.6);
+            ctx.fillStyle = this.alpha(i % 2 ? '#ffb347' : '#ff5a2a', al);
+            ctx.beginPath(); ctx.ellipse(fx, fy, 2.6 * scale, 4.4 * scale, 0, 0, Math.PI * 2); ctx.fill();
+          }
+        } else if (e.type === 'slow') {
+          // ayak çevresinde buz kristalleri
+          ctx.save(); ctx.globalAlpha = 0.8; ctx.strokeStyle = '#8fe6ff';
+          ctx.lineWidth = 1.6 * scale;
+          for (let i = 0; i < 5; i++) {
+            const ang = (i / 5) * Math.PI * 2 + now * 0.7;
+            const cx = s.x + Math.cos(ang) * 12 * scale;
+            const cy = s.y - 2 * scale + Math.sin(ang) * 5 * scale;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 5 * scale);
+            ctx.moveTo(cx - 2 * scale, cy - 3 * scale); ctx.lineTo(cx + 2 * scale, cy - 3 * scale);
+            ctx.stroke();
+          }
+          ctx.restore();
+        } else if (e.type === 'stun') {
+          // başın üstünde dönen yıldızlar
+          for (let i = 0; i < 3; i++) {
+            const ang = now * 4 + i * (Math.PI * 2 / 3);
+            const sx2 = s.x + Math.cos(ang) * 11 * scale;
+            const sy2 = ty - 14 * scale + Math.sin(ang) * 4 * scale;
+            ctx.fillStyle = this.alpha('#ffd15c', 0.55 + Math.sin(ang) * 0.4);
+            this.star(sx2, sy2, 3.2 * scale);
+          }
+        } else {
+          ctx.fillStyle = '#9fe0a0';
+          ctx.beginPath(); ctx.arc(s.x, ty - 16 * scale, 2.6 * scale, 0, Math.PI * 2); ctx.fill();
+        }
       }
     }
 
@@ -3507,11 +3727,29 @@ class Renderer {
     const ctx = this.ctx, z = this.cam.zoom;
     const s = this.worldToScreen(p.x, p.y);
     const r = p.size * TW * 0.4 * z;
+    const t = performance.now() / 1000;
     ctx.save();
-    const g = ctx.createRadialGradient(s.x, s.y - 16 * z, 1, s.x, s.y - 16 * z, r * 2.2);
+    ctx.globalCompositeOperation = 'lighter';
+
+    /* Kuyruk izi: geldiği yönün tersine uzanan solan şerit */
+    const back = this.worldToScreen(p.x - Math.cos(p.angle) * 1.1, p.y - Math.sin(p.angle) * 1.1);
+    const tg = ctx.createLinearGradient(s.x, s.y - 16 * z, back.x, back.y - 16 * z);
+    tg.addColorStop(0, this.alpha(p.color, 0.75));
+    tg.addColorStop(1, this.alpha(p.color, 0));
+    ctx.strokeStyle = tg;
+    ctx.lineWidth = r * 1.5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y - 16 * z); ctx.lineTo(back.x, back.y - 16 * z);
+    ctx.stroke();
+
+    // hale — hafifçe nabız atar
+    const pulse = 1 + Math.sin(t * 16 + p.x) * 0.12;
+    const g = ctx.createRadialGradient(s.x, s.y - 16 * z, 1, s.x, s.y - 16 * z, r * 2.4 * pulse);
     g.addColorStop(0, p.color); g.addColorStop(1, this.alpha(p.color, 0));
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(s.x, s.y - 16 * z, r * 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y - 16 * z, r * 2.4 * pulse, 0, Math.PI * 2); ctx.fill();
+
+    // beyaz çekirdek
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(s.x, s.y - 16 * z, r * 0.55, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -3665,6 +3903,19 @@ class Renderer {
   }
 
   /* renk yardımcıları */
+  /* Beş köşeli yıldız — sersemletme göstergesi */
+  star(x, y, r) {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 ? r * 0.45 : r;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const px = x + Math.cos(a) * rad, py = y + Math.sin(a) * rad;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+
   shade(hex, f) {
     const c = hex.replace('#', '');
     const n = parseInt(c.length === 3 ? c.split('').map(x => x + x).join('') : c, 16);
@@ -5139,6 +5390,7 @@ class Game {
 
     target.hp -= res.damage;
     target.hitFlash = 0.12;
+    target.squash = Math.min(1, (target.squash || 0) + (res.crit ? 0.9 : 0.5));   // darbe ezilmesi
     target.noHitTime = 0;          // hasar aldı → savaş dışı yenilenme beklemeye girer
     if (target.kind === 'monster' || target.kind === 'boss') target.inCombat = true;
     this.fx.damageNumber(target.x, target.y, res.damage, {
