@@ -354,6 +354,7 @@ class Game {
 
     target.hp -= res.damage;
     target.hitFlash = 0.12;
+    target.squash = Math.min(1, (target.squash || 0) + (res.crit ? 0.9 : 0.5));   // darbe ezilmesi
     target.noHitTime = 0;          // hasar aldı → savaş dışı yenilenme beklemeye girer
     if (target.kind === 'monster' || target.kind === 'boss') target.inCombat = true;
     this.fx.damageNumber(target.x, target.y, res.damage, {
