@@ -1,172 +1,179 @@
-/* =============================================================
-   world.js — Harita üretimi, engeller, portallar, NPC'ler, çarpışma
-   ============================================================= */
+/* ============================================================
+   world.js — Haritalar, moblar, bosslar, NPC'ler.
+   Mob statları elle yazılmaz; balance.mobBase(level) eğrisinden
+   arketip çarpanlarıyla türetilir. Yeni harita eklemek için
+   MAPS dizisine tek nesne eklemek yeterli.
+   ============================================================ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(
+    typeof require === 'function' ? require('./balance.js') : root.Balance);
+  else root.WorldData = factory(root.Balance);
+})(typeof self !== 'undefined' ? self : this, function (B) {
+  'use strict';
 
-class World {
-  constructor(mapId, game) {
-    this.id = mapId;
-    this.def = GameData.MAPS[mapId];
-    this.w = this.def.w;
-    this.h = this.def.h;
-    this.obstacles = [];   // {x,y,r,kind,color,height}
-    this.portals = [];     // {x,y,r,to,label,color}
-    this.npcs = [];        // {x,y,r,kind,name}
-    this.tiles = [];       // görsel varyasyon
-    this.game = game;
+  /* ---------- MOB ARKETİPLERİ ----------
+     Aynı seviyede farklı his veren mob çeşitliliği sağlar.           */
+  const ARCHETYPES = {
+    weak: { hp: 0.72, atk: 0.80, def: 0.75, exp: 0.80, yang: 0.85, spd: 1.0, aspd: 1.0 },
+    normal: { hp: 1.00, atk: 1.00, def: 1.00, exp: 1.00, yang: 1.00, spd: 1.0, aspd: 1.0 },
+    swift: { hp: 0.82, atk: 0.92, def: 0.80, exp: 1.05, yang: 1.00, spd: 1.5, aspd: 1.45 },
+    brute: { hp: 1.75, atk: 1.25, def: 1.35, exp: 1.55, yang: 1.45, spd: 0.8, aspd: 0.8 },
+    caster: { hp: 0.85, atk: 1.30, def: 0.70, exp: 1.25, yang: 1.20, spd: 0.95, aspd: 0.9, magic: true },
+    elite: { hp: 3.20, atk: 1.55, def: 1.60, exp: 3.20, yang: 3.00, spd: 1.0, aspd: 1.1 },
+    boss: { hp: 14.0, atk: 2.10, def: 2.10, exp: 16.0, yang: 14.0, spd: 0.9, aspd: 1.0, boss: true }
+  };
 
-    /* Maden haritasının elementi HER ZAMAN oyuncunun karşıtıdır:
-       Su karakteri → ateş madenleri ve ateş düşmanları, Ateş karakteri → su madenleri. */
-    if (this.def.mine) {
-      const race = (game && game.save && game.save.race) || 'su';
-      this.element = race === 'su' ? 'ates' : 'su';
-      this.name = this.element === 'ates' ? 'Ateş Madenleri' : 'Buz Madenleri';
-      this.accent = this.element === 'ates' ? '#8a4a2a' : '#3f7f9a';
-      this.ground = this.element === 'ates' ? '#2e2028' : '#1e2833';
-    } else {
-      this.element = this.def.element || null;
-      this.name = this.def.name;
-      this.accent = this.def.accent;
-      this.ground = this.def.ground;
+  function mobStats(level, archKey) {
+    const a = ARCHETYPES[archKey] || ARCHETYPES.normal;
+    const b = B.mobBase(level);
+    return {
+      hp: Math.round(b.hp * a.hp),
+      atk: Math.round(b.atk * a.atk),
+      def: Math.round(b.def * a.def),
+      exp: Math.round(b.exp * a.exp),
+      yang: Math.round(b.yang * a.yang),
+      attackInterval: 2.0 / a.aspd,
+      isBoss: !!a.boss,
+      isMagic: !!a.magic
+    };
+  }
+
+  /* ---------- DROP TABLOSU YARDIMCISI ----------
+     chance = 0..1 (level farkı cezası ayrıca uygulanır)               */
+  function D(id, chance, min, max) { return { id, chance, min: min || 1, max: max || (min || 1) }; }
+
+  /* ---------- HARİTALAR ----------
+     tier      : rarity tablosu kademesi
+     equipTier : bu haritadan düşebilecek ekipman kademeleri [min,max]
+     Düşük seviye harita asla yüksek kademe ekipman düşürmez.          */
+  const MAPS = [
+    {
+      id: 'town', name: 'Akçay Kasabası', type: 'town', tier: 0, minLevel: 1, maxLevel: 100,
+      desc: 'Taş surlarla çevrili sakin bir liman kasabası. Burada savaş yok.',
+      theme: 'town', mobs: [], drops: [], equipTier: [0, 0]
+    },
+    {
+      id: 'meadow', name: 'Sisli Çayır', type: 'field', tier: 1, minLevel: 1, maxLevel: 15, levelRange: [1, 12],
+      desc: 'Kasabanın hemen dışında, sabah sisi hiç dağılmayan otlaklar.',
+      theme: 'meadow', equipTier: [1, 2],
+      mobs: [
+        { id: 'burr_hound', name: 'Dikenli Tazı', arch: 'weak', lvl: [1, 4] },
+        { id: 'mud_crawler', name: 'Balçık Sürüngeni', arch: 'normal', lvl: [3, 8] },
+        { id: 'fen_stalker', name: 'Bataklık Avcısı', arch: 'swift', lvl: [7, 12] },
+        { id: 'stone_toad', name: 'Taş Kurbağa', arch: 'brute', lvl: [10, 14] }
+      ],
+      boss: { id: 'greatwart', name: 'Ulu Siğilkurbağa', arch: 'boss', lvl: 15, respawn: 240 },
+      drops: [D('iron_shard', 0.09, 1, 2), D('pot_hp_s', 0.07), D('pot_mp_s', 0.05)]
+    },
+    {
+      id: 'darkwood', name: 'Karanlık Koru', type: 'field', tier: 2, minLevel: 15, maxLevel: 30, levelRange: [15, 28],
+      desc: 'Güneşin dibine hiç inmediği, kökleri birbirine dolanmış yaşlı orman.',
+      theme: 'forest', equipTier: [2, 3],
+      mobs: [
+        { id: 'thorn_wisp', name: 'Diken Cini', arch: 'swift', lvl: [15, 19] },
+        { id: 'bark_golem', name: 'Kabuk Golemi', arch: 'brute', lvl: [18, 24] },
+        { id: 'moss_shaman', name: 'Yosun Şamanı', arch: 'caster', lvl: [21, 27] },
+        { id: 'wolf_kin', name: 'Koru Kurdu', arch: 'normal', lvl: [16, 28] }
+      ],
+      boss: { id: 'rootfather', name: 'Kök Ata', arch: 'boss', lvl: 30, respawn: 300 },
+      drops: [D('iron_shard', 0.11, 1, 3), D('steel_shard', 0.05), D('pot_hp_m', 0.06), D('pot_mp_m', 0.05)]
+    },
+    {
+      id: 'dunes', name: 'Kavrulmuş Kumul', type: 'field', tier: 3, minLevel: 30, maxLevel: 45, levelRange: [30, 43],
+      desc: 'Rüzgârın her gece haritayı yeniden çizdiği, gölgesiz bir çöl.',
+      theme: 'desert', equipTier: [3, 4],
+      mobs: [
+        { id: 'sand_lurker', name: 'Kum Pususu', arch: 'swift', lvl: [30, 34] },
+        { id: 'bone_raider', name: 'Kemik Akıncı', arch: 'normal', lvl: [32, 38] },
+        { id: 'glass_scorpion', name: 'Cam Akrep', arch: 'brute', lvl: [36, 42] },
+        { id: 'dune_seer', name: 'Kumul Kâhini', arch: 'caster', lvl: [38, 43] }
+      ],
+      boss: { id: 'sirocco', name: 'Kumfırtınası Hanı', arch: 'boss', lvl: 45, respawn: 360 },
+      drops: [D('steel_shard', 0.10, 1, 2), D('power_stone', 0.035), D('pot_hp_m', 0.07), D('scroll_upgrade', 0.012)]
+    },
+    {
+      id: 'frostvale', name: 'Buz Vadisi', type: 'field', tier: 4, minLevel: 45, maxLevel: 60, levelRange: [45, 58],
+      desc: 'Nefesin havada donduğu, buzun altında bir şeylerin kıpırdadığı vadi.',
+      theme: 'ice', equipTier: [4, 5],
+      mobs: [
+        { id: 'rime_wight', name: 'Kırağı Hortlağı', arch: 'normal', lvl: [45, 50] },
+        { id: 'ice_maw', name: 'Buz Ağzı', arch: 'brute', lvl: [48, 54] },
+        { id: 'frost_witch', name: 'Ayaz Cadısı', arch: 'caster', lvl: [51, 57] },
+        { id: 'glacier_kin', name: 'Buzul Muhafızı', arch: 'elite', lvl: [55, 58] }
+      ],
+      boss: { id: 'hoarking', name: 'Kırağı Kralı', arch: 'boss', lvl: 60, respawn: 420 },
+      drops: [D('power_stone', 0.055, 1, 2), D('soul_stone', 0.022), D('pot_hp_l', 0.06), D('scroll_upgrade', 0.02), D('protect_stone', 0.006)]
+    },
+    {
+      id: 'emberreach', name: 'Köz Yamacı', type: 'field', tier: 5, minLevel: 60, maxLevel: 75, levelRange: [60, 73],
+      desc: 'Yanardağın kabuk bağlamış sırtı. Zemin hâlâ sıcak.',
+      theme: 'volcano', equipTier: [5, 6],
+      mobs: [
+        { id: 'cinder_hound', name: 'Köz Tazısı', arch: 'swift', lvl: [60, 65] },
+        { id: 'magma_brute', name: 'Magma Zorbası', arch: 'brute', lvl: [63, 69] },
+        { id: 'ash_conjurer', name: 'Kül Büyücüsü', arch: 'caster', lvl: [66, 72] },
+        { id: 'forge_sentinel', name: 'Ocak Muhafızı', arch: 'elite', lvl: [70, 73] }
+      ],
+      boss: { id: 'pyrelord', name: 'Ateş Efendisi', arch: 'boss', lvl: 75, respawn: 480 },
+      drops: [D('soul_stone', 0.05, 1, 2), D('magic_stone', 0.018), D('pot_hp_l', 0.07), D('protect_stone', 0.012), D('scroll_upgrade', 0.03)]
+    },
+    {
+      id: 'gravemarch', name: 'Ölüm Geçidi', type: 'field', tier: 6, minLevel: 75, maxLevel: 90, levelRange: [75, 88],
+      desc: 'Eski bir ordunun yürüyüşte donup kaldığı geçit. Hâlâ yürüyorlar.',
+      theme: 'grave', equipTier: [6, 6],
+      mobs: [
+        { id: 'pale_lancer', name: 'Solgun Mızrakçı', arch: 'normal', lvl: [75, 80] },
+        { id: 'grave_titan', name: 'Mezar Devi', arch: 'brute', lvl: [78, 84] },
+        { id: 'wail_binder', name: 'Feryat Bağlayıcı', arch: 'caster', lvl: [81, 87] },
+        { id: 'dread_knight', name: 'Dehşet Şövalyesi', arch: 'elite', lvl: [85, 88] }
+      ],
+      boss: { id: 'marshal_null', name: 'Sessiz Mareşal', arch: 'boss', lvl: 90, respawn: 600 },
+      drops: [D('magic_stone', 0.04, 1, 2), D('soul_stone', 0.08, 1, 2), D('protect_stone', 0.02), D('scroll_upgrade', 0.04)]
+    },
+    {
+      id: 'starfall', name: 'Yıldızdüşü Krateri', type: 'field', tier: 7, minLevel: 90, maxLevel: 100, levelRange: [90, 99],
+      desc: 'Gökten düşen şeyin açtığı çukur. Kenarındaki taşlar hâlâ ışıyor.',
+      theme: 'star', equipTier: [7, 7],
+      mobs: [
+        { id: 'void_shard', name: 'Boşluk Kırığı', arch: 'swift', lvl: [90, 93] },
+        { id: 'star_husk', name: 'Yıldız Kabuğu', arch: 'brute', lvl: [92, 96] },
+        { id: 'null_seer', name: 'Hiçlik Kâhini', arch: 'caster', lvl: [94, 98] },
+        { id: 'crater_warden', name: 'Krater Bekçisi', arch: 'elite', lvl: [96, 99] }
+      ],
+      boss: { id: 'the_fallen', name: 'Düşen', arch: 'boss', lvl: 100, respawn: 900 },
+      drops: [D('magic_stone', 0.09, 1, 3), D('protect_stone', 0.035), D('scroll_upgrade', 0.06)]
     }
-    this.oreSpots = [];
-    this.build();
-    this.makeTiles();
+  ];
+
+  /* ---------- BOSS EK DROPLARI ----------
+     Boss'lar ek olarak garanti materyal ve yüksek item şansı verir.   */
+  const BOSS_BONUS = {
+    guaranteedItems: 1,       // en az 1 ekipman düşer
+    extraItemChance: 0.45,    // ikinci ekipman şansı
+    matBundle: 3,             // materyal drop'ları 3 katı adet
+    bookChance: 0.30          // skill kitabı şansı
+  };
+
+  /* Normal moblardan ekipman düşme temel şansı (harita kademesine göre) */
+  const ITEM_DROP_BASE = { 1: 0.055, 2: 0.050, 3: 0.046, 4: 0.042, 5: 0.038, 6: 0.035, 7: 0.032 };
+  const BOOK_DROP_BASE = { 1: 0.000, 2: 0.004, 3: 0.006, 4: 0.008, 5: 0.010, 6: 0.012, 7: 0.014 };
+
+  /* ---------- ŞEHİR NPC'LERİ ---------- */
+  const NPCS = [
+    { id: 'blacksmith', name: 'Demirci Vardan', role: 'shop_weapon', icon: '⚒', line: 'Keskin çelik pahalıdır, ama ucuz çelik daha pahalıya patlar.' },
+    { id: 'armorer', name: 'Zırhçı Nesrin', role: 'shop_armor', icon: '🛡', line: 'Sırtını koruyan şey, cesaretinden daha uzun ömürlüdür.' },
+    { id: 'alchemist', name: 'Şifacı Doruk', role: 'shop_potion', icon: '⚗', line: 'İki şişe al. Birini içmeyi unutacaksın.' },
+    { id: 'refiner', name: 'Usta Kayra', role: 'upgrade', icon: '🔨', line: 'Demiri zorlarsan kırılır. Ama zorlamazsan da öylece kalır.' },
+    { id: 'trainer', name: 'Eğitmen Sarp', role: 'skill', icon: '📜', line: 'Bir tekniği bin kez tekrar et, bin tekniği bir kez değil.' },
+    { id: 'porter', name: 'Kervancı Ilgaz', role: 'teleport', icon: '🧭', line: 'Yolun uzunluğu, cebinin derinliğiyle ters orantılıdır.' }
+  ];
+
+  function mapById(id) { return MAPS.find(m => m.id === id); }
+  function mobDef(mapId, mobId) {
+    const m = mapById(mapId); if (!m) return null;
+    if (m.boss && m.boss.id === mobId) return m.boss;
+    return m.mobs.find(x => x.id === mobId);
   }
 
-  makeTiles() {
-    for (let y = 0; y < this.h; y++) {
-      const row = [];
-      for (let x = 0; x < this.w; x++) row.push(Math.random());
-      this.tiles.push(row);
-    }
-  }
-
-  addRock(x, y, r, color, height, kind = 'rock') {
-    this.obstacles.push({ x, y, r, color, height, kind });
-  }
-
-  build() {
-    const d = this.def;
-    const cx = this.w / 2, cy = this.h / 2;
-
-    if (d.safe) {
-      // ---- ŞEHİR ----
-      const bld = (x, y, w, h, color, name) => {
-        this.obstacles.push({ x, y, r: Math.max(w, h) * 0.5, bw: w, bh: h, color, height: 2.2, kind: 'building', name });
-      };
-      bld(cx - 7, cy - 6, 3.2, 3.2, '#5a4f43', 'Market');
-      bld(cx + 5, cy - 7, 3.0, 3.0, '#4a4a55', 'Demirci');
-      bld(cx - 8, cy + 5, 2.8, 2.8, '#4d5a4a', 'Görev Salonu');
-      bld(cx + 7, cy + 6, 2.8, 2.8, '#55495a', 'Depo');
-
-      // dekor sütunlar
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        this.addRock(cx + Math.cos(a) * 11, cy + Math.sin(a) * 11, 0.5, '#6b7285', 1.6, 'pillar');
-      }
-
-      this.npcs.push({ x: cx - 7, y: cy - 3.4, r: 1.3, kind: 'market', name: 'Tüccar Vela' });
-      this.npcs.push({ x: cx + 5, y: cy - 4.4, r: 1.3, kind: 'craft', name: 'Demirci Kadir' });
-      this.npcs.push({ x: cx - 8, y: cy + 7.4, r: 1.3, kind: 'quest', name: 'Görev Ustası Arin' });
-      this.npcs.push({ x: cx + 7, y: cy + 8.4, r: 1.3, kind: 'storage', name: 'Depocu Nuran' });
-
-      this.portals.push({ x: cx - 11, y: cy - 11, r: 1.4, to: 'farm_su', label: 'Buz Vadisi', color: '#4fd6ff' });
-      this.portals.push({ x: cx + 11, y: cy - 11, r: 1.4, to: 'farm_ates', label: 'Lav Çölü', color: '#ff7a2f' });
-      this.portals.push({ x: cx - 11, y: cy + 11, r: 1.4, to: 'boss_su', label: 'Kraken İni', color: '#2f9fd0' });
-      this.portals.push({ x: cx + 11, y: cy + 11, r: 1.4, to: 'boss_ates', label: 'Ejderha Yuvası', color: '#e05a2a' });
-      this.portals.push({ x: cx, y: cy + 12, r: 1.6, to: 'arena', label: 'PvP Arenası', color: '#ffd15c' });
-      const foe = ((this.game && this.game.save && this.game.save.race) === 'su') ? 'ates' : 'su';
-      this.portals.push({
-        x: cx, y: cy - 12, r: 1.6, to: 'maden',
-        label: foe === 'ates' ? 'Ateş Madenleri' : 'Buz Madenleri',
-        color: foe === 'ates' ? '#ff7a2f' : '#4fd6ff'
-      });
-
-    } else if (d.pvp) {
-      // ---- ARENA (simetrik) ----
-      for (let i = 0; i < 4; i++) {
-        const ox = i % 2 === 0 ? -5 : 5;
-        const oy = i < 2 ? -5 : 5;
-        this.addRock(cx + ox, cy + oy, 0.9, '#7a7f95', 2.0, 'pillar');
-      }
-      this.addRock(cx, cy - 8, 1.1, '#8a90a8', 1.6, 'pillar');
-      this.addRock(cx, cy + 8, 1.1, '#8a90a8', 1.6, 'pillar');
-      for (let i = 0; i < 18; i++) {
-        const a = (i / 18) * Math.PI * 2;
-        this.addRock(cx + Math.cos(a) * 12.5, cy + Math.sin(a) * 12.5, 0.7, '#5b6076', 1.8, 'pillar');
-      }
-      this.portals.push({ x: cx, y: cy + 11.5, r: 1.4, to: 'city', label: 'Şehre Dön', color: '#9fe0a0' });
-
-    } else {
-      // ---- FARM / BOSS HARİTALARI ----
-      const count = d.boss ? 14 : d.mine ? 30 : 46;
-      const accent = this.accent;
-      for (let i = 0; i < count; i++) {
-        const x = U.rand(3, this.w - 3), y = U.rand(3, this.h - 3);
-        if (U.dist(x, y, 4, 4) < 6) continue;                 // giriş bölgesi boş
-        if (d.boss && U.dist(x, y, cx, cy) < 8) continue;      // boss alanı boş
-        this.addRock(x, y, U.rand(0.5, 1.1), accent, U.rand(0.8, 2.0), U.chance(0.5) ? 'rock' : 'tree');
-      }
-      this.portals.push({ x: 3.5, y: 3.5, r: 1.5, to: 'city', label: 'Şehre Dön', color: '#9fe0a0' });
-
-      /* Maden taşlarının duracağı boş noktalar */
-      if (d.mine) {
-        for (let i = 0; i < (d.ore || 6); i++) {
-          const a = (i / (d.ore || 6)) * Math.PI * 2 + U.rand(-0.25, 0.25);
-          const rad = U.rand(9, Math.min(this.w, this.h) * 0.42);
-          const p = this.openNear(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad, 1.9);
-          if (U.dist(p.x, p.y, 4, 4) < 8) continue;
-          this.oreSpots.push(p);
-        }
-      }
-    }
-  }
-
-  /* Çarpışma testi */
-  blocked(x, y, r, ignoreKind) {
-    if (x < r + 1 || y < r + 1 || x > this.w - r - 1 || y > this.h - r - 1) return true;
-    for (const o of this.obstacles) {
-      if (ignoreKind && o.kind === ignoreKind) continue;
-      if (o.kind === 'building') {
-        const hw = o.bw / 2 + r, hh = o.bh / 2 + r;
-        if (Math.abs(x - o.x) < hw && Math.abs(y - o.y) < hh) return true;
-      } else if (U.dist2(x, y, o.x, o.y) < (o.r + r) * (o.r + r)) return true;
-    }
-    return false;
-  }
-
-  clampPos(a) {
-    a.x = U.clamp(a.x, a.r + 1, this.w - a.r - 1);
-    a.y = U.clamp(a.y, a.r + 1, this.h - a.r - 1);
-  }
-
-  randomOpenPos(minDistFrom, minDist = 8) {
-    for (let i = 0; i < 200; i++) {
-      const x = U.rand(3, this.w - 3), y = U.rand(3, this.h - 3);
-      if (this.blocked(x, y, 0.6)) continue;
-      if (minDistFrom && U.dist(x, y, minDistFrom.x, minDistFrom.y) < minDist) continue;
-      return { x, y };
-    }
-    return { x: this.w / 2, y: this.h / 2 };
-  }
-
-  /* Verilen noktaya en yakın boş konum (engel içine doğma sorununu önler) */
-  openNear(x, y, radius = 0.5) {
-    if (!this.blocked(x, y, radius)) return { x, y };
-    for (let r = 0.6; r < 10; r += 0.5) {
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) {
-        const nx = x + Math.cos(a) * r, ny = y + Math.sin(a) * r;
-        if (!this.blocked(nx, ny, radius)) return { x: nx, y: ny };
-      }
-    }
-    return { x: this.w / 2, y: this.h / 2 };
-  }
-
-  entryPos() {
-    let p;
-    if (this.def.safe) p = { x: this.w / 2, y: this.h / 2 + 4 };
-    else if (this.def.pvp) p = { x: this.w / 2, y: this.h / 2 + 9.5 };
-    else p = { x: 5.5, y: 5.5 };
-    return this.openNear(p.x, p.y, 0.5);
-  }
-}
+  return { ARCHETYPES, mobStats, MAPS, NPCS, BOSS_BONUS, ITEM_DROP_BASE, BOOK_DROP_BASE, mapById, mobDef };
+});
